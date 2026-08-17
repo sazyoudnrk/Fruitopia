@@ -97,6 +97,15 @@ body{
   box-shadow:0 0 0 2px #eef3f6, 0 0 9px rgba(207,216,221,.6),
              inset 0 -3px 0 rgba(60,70,78,.32), inset 0 2px 0 rgba(255,255,255,.55);
 }
+.tile .face.black{
+  background:radial-gradient(circle at 50% 42%, #2a1840 0%, #150b22 55%, #06030c 100%);
+  box-shadow:0 0 0 2px #7a5cc4, 0 0 16px rgba(150,110,240,.8),
+             inset 0 0 14px rgba(0,0,0,.9);
+  color:#c6a2ff;
+  animation:void calc(2.6s * var(--sp)) ease-in-out infinite;
+}
+@keyframes void{0%,100%{box-shadow:0 0 0 2px #6a4cb4, 0 0 10px rgba(150,110,240,.55), inset 0 0 14px rgba(0,0,0,.9)}
+  50%{box-shadow:0 0 0 2px #a98cff, 0 0 24px rgba(180,140,255,.95), inset 0 0 14px rgba(0,0,0,.9)}}
 .tile .face.rainbow{
   background:linear-gradient(135deg,#ff7ab8,#ffd166,#8ce99a,#74c0fc,#b197fc,#ff7ab8);
   background-size:280% 280%;
@@ -213,6 +222,22 @@ body{
 .card .tag{display:inline-block;font-size:9px;letter-spacing:.1em;padding:1px 6px;border-radius:99px;
   border:1px solid var(--line);color:var(--dim);margin-left:6px;vertical-align:1px}
 .row{display:flex;gap:8px;margin-top:4px}
+.seedbar{display:flex;align-items:center;gap:8px;margin:10px 0 6px;padding:8px 11px;border-radius:11px;
+  background:linear-gradient(180deg,#22301f,#1b241c);border:1px solid #3c5238}
+.seedbar .lbl{font-size:12px;color:var(--cream)}
+.seedbar .num{font-size:17px;font-weight:800;color:var(--lantern);font-variant-numeric:tabular-nums}
+.seedbar .cost{margin-left:auto;font-size:10.5px;color:var(--dim)}
+.own{max-height:172px;overflow-y:auto;border:1px solid var(--line);border-radius:11px;
+  background:#161e17;padding:2px 8px;-webkit-overflow-scrolling:touch}
+.ownrow{display:flex;align-items:baseline;gap:7px;padding:6px 0;border-bottom:1px solid #253024}
+.ownrow:last-child{border-bottom:none}
+.ownrow .ic{font-size:15px;flex:0 0 auto}
+.ownrow .t{font-size:11.5px;font-weight:700;flex:0 0 auto;white-space:nowrap}
+.ownrow .d{font-size:10.5px;color:var(--dim);line-height:1.35}
+.ownrow .lv{margin-left:auto;font-size:9px;font-weight:800;color:var(--ink);background:var(--lantern);
+  border-radius:99px;padding:0 5px;flex:0 0 auto}
+.ownrow.neg .t{color:#f19aa6}
+.ownrow.tre .t{color:var(--lantern)}
 .row .btn{flex:1}
 .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
 .tbl td{padding:6px 3px;border-bottom:1px solid #2b382c;color:#c8d3c4;vertical-align:middle}
@@ -307,6 +332,9 @@ const CONFIG = {
   silverPairEat:  12,    // 銀どうしが同時に起爆したときの虫食い数
   silverMult:     1.5,   // 銀が消したフルーツのスコア倍率
   rainbowThreshold:6,    // 虹色フルーツが生まれる同時消し数
+  blackChance:    0.0015,// 黒いフルーツが湧く確率（1マスあたり・ごく低確率）
+  blackMult:      5,     // 黒が消したフルーツのスコア倍率
+  rainbowConvert: 10,    // 虹色が同じ種類に塗り替えるマス数
   rainbowMult:    3,     // 虹色が消したフルーツのスコア倍率
   fakeInterval:   3,     // にせもの系アイテムが盤面を書き換える間隔（ターン）
   fakeCount:      5,     // にせもの系アイテム1個が書き換えるマス数
@@ -421,6 +449,12 @@ const ITEMS = [
     apply:c=>c.silverMultAdd+=1},
   {id:'prism',   n:'虹のかけら',   ic:'🌈', tag:'特殊', d:'虹色の倍率 +1.5（×3 → ×4.5）',
     apply:c=>c.rainbowMultAdd+=1.5},
+  {id:'palette', n:'虹の絵の具',   ic:'🎨', tag:'特殊', d:'虹色が塗り替えるマス数 +6（10 → 16）',
+    apply:c=>c.rainbowConvAdd+=6},
+  {id:'newmoon', n:'新月の契約',   ic:'🌑', tag:'特殊', d:'黒いフルーツの出現率 ×5',
+    apply:c=>c.blackChanceMul*=5},
+  {id:'abyssvessel',n:'深淵の器',  ic:'🫙', tag:'特殊', d:'黒の倍率 +4（×5 → ×9）',
+    apply:c=>c.blackMultAdd+=4},
   {id:'rainmold',n:'虹の鋳型',     ic:'💎', tag:'特殊', unique:true, d:'5個そろえるだけで虹色フルーツが生まれる',
     apply:c=>c.rainbowCut+=1},
   {id:'forgery', n:'偽装工作',     ic:'🎭', tag:'特殊', d:'にせもの系の書き換えマス数 +3',
@@ -546,7 +580,7 @@ const S = {
   stage:0, turns:0, turnsMax:0, harvest:0, target:0,
   seeds:0, bombs:0, items:[], treasures:[], slots:CONFIG.startSlots,
   w:8, h:8, grid:[], fruitIds:[], stageCleared:0, counters:{},
-  busy:false, sel:null, bombMode:false, uid:0, store:null,
+  busy:false, sel:null, bombMode:false, uid:0, store:null, afterStore:null,
   spd:(SPEEDS.find(s => s.id === DEFAULT_SPEED) || SPEEDS[1]).v
 };
 const T = ms => Math.round(ms * S.spd);
@@ -602,7 +636,8 @@ function ctx(){
     spawnMul:{}, convert:[], topSpawn:0, convAdd:0, fakeBonus:0,
     goldCut:0, goldRange:0, goldMultAdd:0,
     silverCut:0, silverEatAdd:0, silverMultAdd:0,
-    rainbowCut:0, rainbowMultAdd:0, fakeCountAdd:0,
+    rainbowCut:0, rainbowMultAdd:0, rainbowConvAdd:0, fakeCountAdd:0,
+    blackChanceMul:1, blackMultAdd:0,
     storeSize:CONFIG.storeSize, slotAdd:0, bombAdd:0,
     startSeeds:0, startItems:0, turnAdd:0
   };
@@ -652,7 +687,8 @@ function spawnTable(){
   const conv = c.convert
     .filter(cv => S.fruitIds.includes(cv.to))
     .map(cv => ({to:cv.to, p:Math.min(0.9, cv.p + c.convAdd)}));
-  return {w, total:w.reduce((a,b) => a+b, 0), conv};
+  return {w, total:w.reduce((a,b) => a+b, 0), conv,
+          black: CONFIG.blackChance * c.blackChanceMul};
 }
 function refreshSpawn(){ S.spawn = spawnTable(); }
 
@@ -680,7 +716,9 @@ function newCell(){
     if(cv.to === f) continue;
     if(Math.random() < cv.p){ f = cv.to; break; }
   }
-  return {id:++S.uid, f};
+  const cell = {id:++S.uid, f};
+  if(Math.random() < t.black) cell.sp = 'black';   // ごく低確率で黒いフルーツ
+  return cell;
 }
 function at(x,y){ return (x<0||y<0||x>=S.w||y>=S.h) ? null : S.grid[y*S.w+x]; }
 
@@ -736,6 +774,29 @@ function findGroups(){
       });
     }
     out.push(comp);
+  }
+
+  // 金・銀は2個隣接するだけで成立する（通常フルーツの3個マッチには適用しない）
+  const used = new Set();
+  out.forEach(g => g.forEach(i => used.add(i)));
+  for(const sp of ['gold','silver']){
+    const done = new Uint8Array(w*h);
+    for(let i=0;i<w*h;i++){
+      if(done[i] || !grid[i] || grid[i].sp !== sp) continue;
+      const st = [i], comp = []; done[i] = 1;
+      while(st.length){
+        const cur = st.pop(); comp.push(cur);
+        const cx = cur%w, cy = (cur/w)|0;
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+          const nx = cx+dx, ny = cy+dy;
+          if(nx<0||ny<0||nx>=w||ny>=h) continue;
+          const ni = ny*w+nx;
+          if(!done[ni] && grid[ni] && grid[ni].sp === sp){ done[ni] = 1; st.push(ni); }
+        }
+      }
+      const fresh = comp.filter(j => !used.has(j));   // 通常マッチ済みのぶんは除く
+      if(fresh.length >= 2){ fresh.forEach(j => used.add(j)); out.push(fresh); }
+    }
   }
   return out;
 }
@@ -793,6 +854,7 @@ function sync(spawnFromTop = true){
     el.firstElementChild.classList.toggle('gold', c.sp === 'gold');
     el.firstElementChild.classList.toggle('silver', c.sp === 'silver');
     el.firstElementChild.classList.toggle('rainbow', c.sp === 'rainbow');
+    el.firstElementChild.classList.toggle('black', c.sp === 'black');
   }
   for(const [id,el] of [...tileEls]) if(!live.has(id)){ el.remove(); tileEls.delete(id); }
 }
@@ -920,11 +982,13 @@ const rainbowNeed = c => Math.max(3, CONFIG.rainbowThreshold - c.rainbowCut);
 const SP = {
   silver:  {n:'銀',   col:'#dfe8ee'},
   gold:    {n:'黄金', col:'#ffdf6b'},
-  rainbow: {n:'虹色', col:'#a8f0ff'}
+  rainbow: {n:'虹色', col:'#a8f0ff'},
+  black:   {n:'黒',   col:'#c6a2ff'}
 };
 const spMult = (sp, c) =>
   sp === 'gold'    ? CONFIG.goldMult    + c.goldMultAdd :
   sp === 'rainbow' ? CONFIG.rainbowMult + c.rainbowMultAdd :
+  sp === 'black'   ? CONFIG.blackMult   + c.blackMultAdd :
                      CONFIG.silverMult  + c.silverMultAdd;
 
 // そろえた数に応じて生まれる特殊フルーツ（多いほうが優先）
@@ -947,6 +1011,22 @@ function centerCell(g){
   return best;
 }
 
+// マスのフルーツ種別を差し替える（見た目も更新する）
+function setFruit(i, f){
+  const cell = S.grid[i];
+  if(!cell) return;
+  cell.f = f;
+  const el = tileEls.get(cell.id);
+  if(!el) return;
+  const face = el.firstElementChild;
+  face.textContent = F[f].icon;
+  face.style.setProperty('--fc', F[f].color);
+  face.style.setProperty('--fr', F[f].shape);
+  face.classList.remove('morph');
+  void face.offsetHeight;
+  face.classList.add('morph');
+}
+
 function shuffled(arr){
   const a = arr.slice();
   for(let i=a.length-1;i>0;i--){ const j = rnd(i+1); [a[i],a[j]] = [a[j],a[i]]; }
@@ -955,11 +1035,13 @@ function shuffled(arr){
 
 /* 特殊フルーツの誘爆を1波ずつ進める。
    巻き込まれた特殊フルーツはその場では消えず、盤面に残ったまま次の波で起爆する。 */
-async function detonate(fuse, c, chainMul){
+async function detonate(fuse, c, chainMul, protect){
   let total = 0, wave = 0;
+  const safe = new Set(protect || []);   // この処理中に生まれた特殊フルーツは消さない
 
   while(fuse.length){
     wave++;
+    const blacks  = fuse.filter(i => S.grid[i] && S.grid[i].sp === 'black');
     let golds   = fuse.filter(i => S.grid[i] && S.grid[i].sp === 'gold');
     const silvers = fuse.filter(i => S.grid[i] && S.grid[i].sp === 'silver');
     const rains   = fuse.filter(i => S.grid[i] && S.grid[i].sp === 'rainbow');
@@ -977,19 +1059,27 @@ async function detonate(fuse, c, chainMul){
       const cell = S.grid[i], el = cell && tileEls.get(cell.id);
       if(el) el.firstElementChild.classList.add('charge');
     });
-    const label = rains.length ? SP.rainbow : golds.length ? SP.gold : SP.silver;
+    const label = blacks.length ? SP.black : rains.length ? SP.rainbow
+                : golds.length ? SP.gold : SP.silver;
+    if(blacks.length) announce('黒 の 収 穫', SP.black.col);
     floatXY((S.w-1)/2, S.h*0.40,
             wave > 1 ? `誘爆 ${wave}` : `${label.n}の爆発`,
             label.col, {cls:'grp'});
-    await sleep(T(rains.length || golds.length ? 300 : 200));
+    await sleep(T(blacks.length ? 620 : (rains.length || golds.length) ? 300 : 200));
 
     // ---- 消去範囲を組み立てる（値は適用されるスコア倍率）----
     const src = new Set(fuse);
     const zone = new Map();
     const put = (i, m) => {
-      if(!S.grid[i] || src.has(i) || i === becomeRainbow) return;
+      if(!S.grid[i] || src.has(i) || i === becomeRainbow || safe.has(i)) return;
       zone.set(i, Math.max(zone.get(i) || 0, m));
     };
+
+    // 黒：盤面のフルーツをすべて消す
+    if(blacks.length){
+      const bm = spMult('black', c);
+      for(let j=0;j<S.w*S.h;j++) put(j, bm);
+    }
 
     // 金：丸く抉る
     const gr = CONFIG.goldRadius + c.goldRange, glim = gr*gr + 1, gm = spMult('gold', c);
@@ -1007,13 +1097,30 @@ async function detonate(fuse, c, chainMul){
     if(silvers.length){
       const eat = (silvers.length >= 2 ? CONFIG.silverPairEat : CONFIG.silverEat) + c.silverEatAdd;
       const pool = [];
-      for(let i=0;i<S.w*S.h;i++) if(S.grid[i] && !src.has(i) && i !== becomeRainbow) pool.push(i);
+      for(let i=0;i<S.w*S.h;i++)
+        if(S.grid[i] && !src.has(i) && i !== becomeRainbow && !safe.has(i)) pool.push(i);
       shuffled(pool).slice(0, eat).forEach(i => put(i, spMult('silver', c)));
     }
 
-    // 虹：自分と同じ種類のフルーツを全消去
+    // 虹：ランダムなマスを自分と同じ種類に塗り替えてから、その種類を全消去
     for(const i of rains){
       const f = S.grid[i].f;
+      const pool = [];
+      for(let j=0;j<S.w*S.h;j++){
+        const cell = S.grid[j];
+        if(!cell || cell.sp || cell.f === f) continue;          // 特殊フルーツと同種は対象外
+        if(src.has(j) || j === becomeRainbow || safe.has(j)) continue;
+        pool.push(j);
+      }
+      const paint = shuffled(pool).slice(0, CONFIG.rainbowConvert + c.rainbowConvAdd);
+      if(paint.length){
+        paint.forEach(j => {
+          setFruit(j, f);
+          floatText(j, F[f].icon, SP.rainbow.col, {cls:'fx', dy:0.58});
+        });
+        floatXY((S.w-1)/2, S.h*0.58, `${F[f].name}に染まる ${paint.length}`, SP.rainbow.col, {cls:'grp'});
+        await sleep(T(520));                                     // 染まったのを見せてから消す
+      }
       for(let j=0;j<S.w*S.h;j++) if(S.grid[j] && S.grid[j].f === f) put(j, spMult('rainbow', c));
     }
 
@@ -1056,7 +1163,7 @@ async function resolve(freeAction){
 
   while(true){
     const groups = findGroups();
-    if(!groups.length) break;
+    if(!groups.length || chain > 60) break;
     chain++;
     if(chain >= 2) bump('chain');
     const extras = new Set();
@@ -1152,7 +1259,7 @@ async function resolve(freeAction){
                           '#f5b942', {cls:'grp', delay:T(60)});
 
     await clearCells(all);
-    if(fuse.length) raw += await detonate(fuse, c, chainMul);
+    if(fuse.length) raw += await detonate(fuse, c, chainMul, born.map(b => b.i));
     await gravity();
     raw += await runTriggers(c, chainMul);
   }
@@ -1223,20 +1330,9 @@ async function fakePhase(){
     }
     const n = CONFIG.fakeCount + c.fakeCountAdd;
     for(const i of shuffled(pool).slice(0, n)){
-      const cell = S.grid[i];
-      cell.f = it.fake;
       locked.add(i);
       changed++;
-      const el = tileEls.get(cell.id);
-      if(el){
-        const face = el.firstElementChild;
-        face.textContent = F[it.fake].icon;
-        face.style.setProperty('--fc', F[it.fake].color);
-        face.style.setProperty('--fr', F[it.fake].shape);
-        face.classList.remove('morph');
-        void face.offsetHeight;
-        face.classList.add('morph');
-      }
+      setFruit(i, it.fake);
       floatText(i, 'にせもの', F[it.fake].color, {cls:'fx', dy:0.58});
     }
   }
@@ -1259,17 +1355,29 @@ async function endTurn(){
 }
 
 /* ---------------- 爆弾（§9.3 暫定仕様） ---------------- */
+/* 爆弾の効果範囲。黒いフルーツは対象から除外する（爆弾では壊せない）。 */
+function bombZone(idx, r){
+  const x = idx%S.w, y = (idx/S.w)|0, set = new Set();
+  let blocked = 0;
+  for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
+    const nx = x+dx, ny = y+dy;
+    if(nx<0||ny<0||nx>=S.w||ny>=S.h) continue;
+    const ni = ny*S.w+nx, cell = S.grid[ni];
+    if(!cell) continue;
+    if(cell.sp === 'black'){ blocked++; continue; }
+    set.add(ni);
+  }
+  return {set, blocked};
+}
+
 async function useBomb(idx){
   const c = ctx(), r = CONFIG.bombRadius + c.bombAdd;
   S.bombs--; S.bombMode = false;
   board.classList.remove('bombing');
   S.busy = true;
-  const x = idx%S.w, y = (idx/S.w)|0, set = new Set();
-  for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
-    const nx = x+dx, ny = y+dy;
-    if(nx<0||ny<0||nx>=S.w||ny>=S.h) continue;
-    if(S.grid[ny*S.w+nx]) set.add(ny*S.w+nx);
-  }
+  const z = bombZone(idx, r);
+  const set = z.set;
+  if(z.blocked) toast('黒いフルーツは爆弾では壊せない');
   let raw = 0;
   for(const i of set) raw += cellValue(S.grid[i], c);
   // 巻き込んだ特殊フルーツは爆風のあとで起爆する
@@ -1304,61 +1412,114 @@ function rollStore(){
   S.store = out;
 }
 
-function openStore(){
+function openStore(after){
   S.busy = false;
+  S.afterStore = after || null;
   rollStore();
   renderStore();
+}
+
+/* ストアを閉じる。ラウンド開始時のストアだけは閉じたあとの処理が違う。 */
+function finishStore(){
+  closeSheet();
+  hud();
+  const f = S.afterStore;
+  S.afterStore = null;
+  if(f) f(); else turnReady();
 }
 
 function renderStore(discardMode){
   const c = ctx();
   const maxSlots = Math.min(CONFIG.maxSlots, S.slots + c.slotAdd);
   const full = S.items.length >= maxSlots;
+  const roundStart = !!S.afterStore;
+
   const cards = S.store.map((it,i) =>
     `<button class="card ${it.neg?'neg':''}" data-buy="${i}">
        <span class="ic">${it.ic}</span>
-       <span><span class="t">${it.n}<span class="tag">${it.tag}</span></span>
+       <span style="flex:1"><span class="t">${it.n}<span class="tag">${it.tag}</span></span>
        <div class="d">${it.d}</div></span>
      </button>`).join('');
 
-  const owned = S.items.map((it,i) =>
+  const dropList = S.items.map((it,i) =>
     `<button class="card ${it.neg?'neg':''}" data-drop="${i}">
        <span class="ic">${it.ic}</span>
-       <span><span class="t">${it.n}</span><div class="d">${it.d}</div></span>
+       <span style="flex:1"><span class="t">${it.n}</span><div class="d">${it.d}</div></span>
      </button>`).join('');
 
+  // 現在のビルドを、リロール画面から離れずに確認できる一覧
+  const ownList = S.items.length
+    ? S.items.map(it => `<div class="ownrow ${it.neg?'neg':''}">
+        <span class="ic">${it.ic}</span>
+        <span class="t">${it.n}</span>
+        <span class="d">${it.d}</span>
+        ${it.track ? `<span class="lv">${it.reset ? cnt(it.track) : 'Lv'+lv(it)}</span>` : ''}
+      </div>`).join('')
+    : `<div class="ownrow"><span class="d" style="color:var(--dim)">まだアイテムを持っていません</span></div>`;
+
+  const treList = S.treasures.length
+    ? S.treasures.map(t => `<div class="ownrow tre">
+        <span class="ic">${t.ic}</span><span class="t">${t.n}</span><span class="d">${t.d}</span>
+      </div>`).join('')
+    : '';
+
+  const canReroll = S.seeds >= CONFIG.rerollCost;
+
   sheet(`
-    <h2>種を蒔く</h2>
-    <div class="sub">残り ${S.turnsMax - S.turns} ターン ・ 収穫 ${S.harvest.toLocaleString()} / ${S.target.toLocaleString()} ・ 倍率 ${fmtMult(staticMult(c))}</div>
-    ${discardMode ? `<div class="sub" style="color:var(--bad)">アイテム枠が満杯です。手放すアイテムを選んでください。</div>${owned}
+    <h2>${roundStart ? 'ラウンド開始' : '種を蒔く'}</h2>
+    <div class="sub">${roundStart
+      ? `${stageData(S.stage).name}　まずアイテムを1つ選ぶ`
+      : `残り ${S.turnsMax - S.turns} ターン ・ 収穫 ${S.harvest.toLocaleString()} / ${S.target.toLocaleString()} ・ 倍率 ${fmtMult(staticMult(c))}`}</div>
+
+    ${discardMode ? `<div class="sub" style="color:var(--bad)">アイテム枠が満杯です。手放すアイテムを選んでください。</div>${dropList}
       <div class="row"><button class="btn ghost" data-act="cancelDrop">やめる</button></div>`
     : `${cards}
+
+      <div class="seedbar">
+        <span class="lbl">🌱 不思議な種</span>
+        <span class="num">×${S.seeds}</span>
+        <span class="cost">引き直しに ×${CONFIG.rerollCost}</span>
+      </div>
       <div class="row">
-        <button class="btn" data-act="reroll" ${S.seeds < CONFIG.rerollCost ? 'disabled' : ''}>
-          🌱 引き直す (種 ${CONFIG.rerollCost})</button>
+        <button class="btn" data-act="reroll" ${canReroll ? '' : 'disabled'}>
+          🌱 引き直す</button>
         <button class="btn ghost" data-act="skip">取らずに次へ</button>
       </div>
-      <div class="row"><button class="btn ghost" data-act="bd">📊 倍率の内訳を見る</button></div>
-      ${full ? '<div class="sub" style="margin-top:8px;color:var(--bad)">枠が満杯です。取得すると手放すアイテムを選びます。</div>' : ''}`}
+      ${full ? '<div class="sub" style="margin-top:8px;color:var(--bad)">枠が満杯です。取得すると手放すアイテムを選びます。</div>' : ''}
+
+      <h3 class="sec">現在のアイテム（${S.items.length} / ${maxSlots}）</h3>
+      <div class="own">${ownList}</div>
+      ${treList ? `<h3 class="sec">たからもの</h3><div class="own">${treList}</div>` : ''}
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost" data-act="bd">📊 倍率の内訳</button>
+        <button class="btn ghost" data-act="cat">📖 図鑑</button>
+      </div>`}
   `, el => {
     el.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
       const it = S.store[+b.dataset.buy];
       if(S.items.length >= maxSlots){ S.pending = it; renderStore(true); return; }
-      S.items.push(it); closeSheet(); hud(); turnReady();
+      S.items.push(it); finishStore();
     });
     el.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => {
       S.items.splice(+b.dataset.drop, 1);
       S.items.push(S.pending); S.pending = null;
-      closeSheet(); hud(); turnReady();
+      finishStore();
     });
     const act = el.querySelector('[data-act="reroll"]');
-    if(act) act.onclick = () => { S.seeds -= CONFIG.rerollCost; rollStore(); renderStore(); hud(); };
+    if(act) act.onclick = () => {
+      if(S.seeds < CONFIG.rerollCost) return;
+      S.seeds -= CONFIG.rerollCost;      // 残数は再描画で即座に反映される
+      rollStore(); renderStore(); hud();
+    };
     const sk = el.querySelector('[data-act="skip"]');
-    if(sk) sk.onclick = () => { closeSheet(); hud(); turnReady(); };
+    if(sk) sk.onclick = finishStore;
     const cd = el.querySelector('[data-act="cancelDrop"]');
     if(cd) cd.onclick = () => { S.pending = null; renderStore(); };
     const bd = el.querySelector('[data-act="bd"]');
     if(bd) bd.onclick = () => openBreakdown(() => renderStore());
+    const cat = el.querySelector('[data-act="cat"]');
+    if(cat) cat.onclick = () => openCatalog(() => renderStore());
   });
 }
 
@@ -1397,8 +1558,8 @@ function startStage(){
     </div>
     <div class="row" style="margin-top:14px"><button class="btn primary" data-act="go">農園を開く</button></div>
   `, el => el.querySelector('[data-act="go"]').onclick = () => {
-    closeSheet();
-    announce(`あと${S.turnsMax}ターン！`, 'var(--lantern)');
+    // ラウンド開始時のアイテム選択（§1）
+    openStore(() => announce(`あと${S.turnsMax}ターン！`, 'var(--lantern)'));
   });
 }
 
@@ -1650,8 +1811,13 @@ function openBreakdown(back){
         <span style="font-size:10px;color:var(--dim)">黄金2つ同時 → 虹色フルーツが誕生</span></td>
         <td>半径 ${CONFIG.goldRadius + c.goldRange}
           <br><span style="font-size:10px;color:var(--dim);font-weight:400">×${Math.round(spMult('gold',c)*100)/100}</span></td></tr>
-      <tr><td class="ic">🌈</td><td>虹色：${rainbowNeed(c)}個 ／ 同じ種類を全消去</td>
-        <td>×${Math.round(spMult('rainbow',c)*100)/100}</td></tr>
+      <tr><td class="ic">🌑</td><td>黒：まれに盤面へ湧く ／ 盤面のフルーツを全消去
+        <br><span style="font-size:10px;color:var(--dim)">爆弾では壊せない</span></td>
+        <td>${pct(Math.min(1, CONFIG.blackChance * c.blackChanceMul))}
+          <br><span style="font-size:10px;color:var(--dim);font-weight:400">×${Math.round(spMult('black',c)*100)/100}</span></td></tr>
+      <tr><td class="ic">🌈</td><td>虹色：${rainbowNeed(c)}個 ／ ランダムなマスを同じ種類に塗ってから全消去</td>
+        <td>${CONFIG.rainbowConvert + c.rainbowConvAdd}マス
+          <br><span style="font-size:10px;color:var(--dim);font-weight:400">×${Math.round(spMult('rainbow',c)*100)/100}</span></td></tr>
     </table>
     <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
       特殊フルーツは塊の中心に残り、次に消したときに発動します。
@@ -1862,8 +2028,11 @@ $('btnHelp').onclick = () => {
       銀どうしが同時に起爆すると${CONFIG.silverPairEat}マス。<br>
       <b>${CONFIG.goldThreshold}個</b> → <b>黄金</b>：まわりを丸く大きく抉る。
       黄金が2つ同時に起爆すると、中心の1つが<b>虹色</b>に変わって残る。<br>
-      <b>${CONFIG.rainbowThreshold}個</b> → <b>虹色</b>：自分と同じ種類のフルーツを盤面から全消去。<br>
-      爆発に巻き込まれた特殊フルーツは、一拍おいて誘爆する。
+      <b>${CONFIG.rainbowThreshold}個</b> → <b>虹色</b>：盤面のランダムな${CONFIG.rainbowConvert}マスを
+      自分と同じ種類に塗り替えたうえで、その種類を盤面から全消去。<br>
+      爆発に巻き込まれた特殊フルーツは、一拍おいて誘爆する。<br>
+      <b>黒いフルーツ</b>はまれに盤面へ湧く。消すと盤面のフルーツが全て消える。ただし爆弾では壊せない。<br>
+      <b>金どうし・銀どうしは2個並ぶだけで消せる</b>（通常のフルーツは3個必要）。
       <h3 class="sec">にせもののフルーツ</h3>
       所持していると対象フルーツの出現率が2倍になり、
       <b>${CONFIG.fakeInterval}ターンごと</b>に盤面の${CONFIG.fakeCount}マスがそのフルーツに変わる。
