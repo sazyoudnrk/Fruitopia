@@ -227,6 +227,11 @@ body{
 .seedbar .lbl{font-size:12px;color:var(--cream)}
 .seedbar .num{font-size:17px;font-weight:800;color:var(--lantern);font-variant-numeric:tabular-nums}
 .seedbar .cost{margin-left:auto;font-size:10.5px;color:var(--dim)}
+textarea.save{width:100%;height:88px;margin-top:6px;padding:9px;border-radius:11px;resize:vertical;
+  background:#0d130e;border:1px solid var(--line);color:var(--cream);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.45;
+  -webkit-user-select:text;user-select:text}
+textarea.save:focus{outline:none;border-color:var(--lantern)}
 .own{max-height:172px;overflow-y:auto;border:1px solid var(--line);border-radius:11px;
   background:#161e17;padding:2px 8px;-webkit-overflow-scrolling:touch}
 .ownrow{display:flex;align-items:baseline;gap:7px;padding:6px 0;border-bottom:1px solid #253024}
@@ -310,17 +315,55 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    バランス調整はこのブロックだけを触れば完結する。
    ========================================================================= */
 
+/* ============================================================================
+   バージョン
+   更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
+   ゲーム内では ⚙ 設定の先頭に表示される。
+   ========================================================================= */
+const VERSION = '0.20';
+const CHANGELOG = [
+  ['0.20', '永続成長「農園の地力」／アイテムのレベル合成／養殖・複利系アイテム／テキストのセーブ＆ロード'],
+  ['0.19', 'たからものにレベルを追加。枠が満杯でも入れ替え・重ねて強化を選べるように'],
+  ['0.18', '既存の特殊フルーツが新しい特殊フルーツに上書きされて効果不発になるバグを修正（効果発動→生成の順に）／導火線を追加'],
+  ['0.17', '黒いフルーツは手でマッチさせたときだけ発動。他の効果では破壊も誘爆もされない／手詰まりの作り直しで特殊フルーツが消えないよう修正'],
+  ['0.16', 'ラウンド開始時に不思議な種を1個付与（必ず1回リロールできる）'],
+  ['0.15', '果樹園の地図が機能していなかったのを修正／バージョン表示を追加'],
+  ['0.14', '連鎖倍率を指数式に変更（1連鎖ごと ×1.6）'],
+  ['0.13', '黒いフルーツを追加（盤面全消去・爆弾では壊せない）'],
+  ['0.12', '虹色フルーツを「10マス塗り替えてから全消去」に変更'],
+  ['0.11', 'ラウンド開始時のストア／金銀の2個マッチ／リロール画面の刷新'],
+  ['0.10', '累積カウンターシステムと累積アイテム群'],
+  ['0.09', '銀・金・虹の特殊フルーツ仕様、にせものの盤面書き換え、ステージ選択'],
+  ['0.08', '残りターンの告知表示と銀のフルーツ'],
+  ['0.07', '黄金のフルーツと段階的な誘爆演出'],
+  ['0.06', 'にせものシリーズを全フルーツぶんに統一'],
+  ['0.05', '倍率の内訳画面と図鑑'],
+  ['0.04', '演出速度の設定'],
+  ['0.03', '1個ずつのスコア表示'],
+  ['0.02', '3ターンごとのストア／フルーツの配色と形'],
+  ['0.01', '初版']
+];
+
 const CONFIG = {
-  baseChain:      0.5,   // 連鎖1つごとの倍率上昇（連鎖2 = ×1.5）
+  chainMode:      'geometric', // 'geometric'（掛け算で伸びる） / 'linear'（足し算で伸びる）
+  chainGrowth:    1.6,   // geometric時：1連鎖ごとに何倍になるか
+  baseChain:      0.5,   // linear時：1連鎖ごとの加算量
+  chainCap:       0,     // 連鎖倍率の上限（0 で無制限）
   sizeBonus:      15,    // 4個消し以降、1個あたりの追加スコア
   effectChance:   0.12,  // フルーツ固有効果の基本発生率
   seedChance:     0.05,  // 不思議な種の出現率（仕様書 §9.1）
   rerollCost:     1,     // リロールの種消費数
+  roundSeeds:     1,     // ラウンド開始時に必ず配られる種（最低1回リロールできる）
   startSlots:     5,     // 初期アイテム枠（§6.2）
   storeInterval:  3,     // 何ターンごとにストアを開くか
   maxSlots:       10,    // 最大アイテム枠
   slotGain:       1,     // ステージクリアごとの枠増加
   treasureSlots:  3,     // たからもの枠（§10.3）
+  treasureMaxLv:  5,     // たからものの最大レベル（重ねて強化できる上限）
+  itemMaxLv:      5,     // アイテムの最大レベル（同じものを取ると重なる）
+  storeGrowth:    3,     // 何ステージごとにストアの候補が1個増えるか
+  soilBase:       2000,  // 地力Lv1に必要な累計収穫量
+  soilGain:       6,     // 地力1レベルあたりの基礎スコア上昇
   storeSize:      3,     // ストア提示数（§6.3）
   multFloor:      0.05,  // 倍率0の破壊力を抑えるガード（§8.1）
   bombRadius:     1,     // 爆弾の効果半径（1 = 3×3）
@@ -334,6 +377,7 @@ const CONFIG = {
   rainbowThreshold:6,    // 虹色フルーツが生まれる同時消し数
   blackChance:    0.0015,// 黒いフルーツが湧く確率（1マスあたり・ごく低確率）
   blackMult:      5,     // 黒が消したフルーツのスコア倍率
+  blackManualOnly:true,  // 黒はプレイヤー自身のマッチでしか発動しない（他の効果では破壊もされない）
   rainbowConvert: 10,    // 虹色が同じ種類に塗り替えるマス数
   rainbowMult:    3,     // 虹色が消したフルーツのスコア倍率
   fakeInterval:   3,     // にせもの系アイテムが盤面を書き換える間隔（ターン）
@@ -379,12 +423,12 @@ const ITEMS = [
     apply:c=>c.baseAdd+=5},
   {id:'rake',  n:'黄金の熊手',   ic:'🪝', tag:'スコア', d:'基礎スコア +14',
     apply:c=>c.baseAdd+=14},
-  {id:'chainm',n:'連鎖の記憶',   ic:'🌀', tag:'スコア', d:'連鎖倍率の上昇量 +0.3',
-    apply:c=>c.chainAdd+=0.3},
+  {id:'chainm',n:'連鎖の記憶',   ic:'🌀', tag:'スコア', d:'連鎖の伸び率 +0.15（×1.6 → ×1.75）',
+    apply:c=>c.chainAdd+=0.15},
   {id:'longr', n:'長蛇の列',     ic:'📏', tag:'スコア', d:'4個以上消しのボーナス +25',
     apply:c=>c.sizeAdd+=25},
-  {id:'sunfoc',n:'太陽光集束',   ic:'🔆', tag:'スコア', d:'連鎖倍率 +0.5／基礎スコア -6',
-    apply:c=>{c.chainAdd+=0.5;c.baseAdd-=6}},
+  {id:'sunfoc',n:'太陽光集束',   ic:'🔆', tag:'スコア', d:'連鎖の伸び率 +0.3／基礎スコア -6',
+    apply:c=>{c.chainAdd+=0.3;c.baseAdd-=6}},
   {id:'ledger',n:'収穫の証',     ic:'📜', tag:'シナジー', d:'所持アイテム1個につき基礎スコア +3',
     apply:(c,s)=>c.baseAdd+=3*s.items.length},
   {id:'stack', n:'積み重ね',     ic:'🗄️', tag:'シナジー', d:'このステージで消した50個ごとに基礎スコア +3',
@@ -453,6 +497,8 @@ const ITEMS = [
     apply:c=>c.rainbowConvAdd+=6},
   {id:'newmoon', n:'新月の契約',   ic:'🌑', tag:'特殊', d:'黒いフルーツの出現率 ×5',
     apply:c=>c.blackChanceMul*=5},
+  {id:'blackfuse',n:'導火線',      ic:'🧨', tag:'特殊', d:'黒いフルーツが爆弾や他の爆発でも起爆するようになる',
+    apply:c=>c.blackFuse=true},
   {id:'abyssvessel',n:'深淵の器',  ic:'🫙', tag:'特殊', d:'黒の倍率 +4（×5 → ×9）',
     apply:c=>c.blackMultAdd+=4},
   {id:'rainmold',n:'虹の鋳型',     ic:'💎', tag:'特殊', unique:true, d:'5個そろえるだけで虹色フルーツが生まれる',
@@ -477,14 +523,55 @@ const ITEMS = [
     d:'金・銀のフルーツを1個消すごとに スコア倍率 +0.1',
     apply:(c,s,it)=>c.mults.push(1 + 0.1*lv(it))},
   {id:'chaintally', n:'連鎖の数珠', ic:'📿', tag:'累積', track:'chain', every:3, unit:'連鎖',
-    d:'連鎖が3回起きるごとに 連鎖倍率の上昇量 +0.5',
-    apply:(c,s,it)=>c.chainAdd += 0.5*lv(it)},
+    d:'連鎖が3回起きるごとに 連鎖の伸び率 +0.2',
+    apply:(c,s,it)=>c.chainAdd += 0.2*lv(it)},
   {id:'proctally',  n:'発芽の記録', ic:'🌿', tag:'累積', track:'proc', every:5, unit:'回',
     d:'固有効果が5回発動するごとに 基礎スコア +4',
     apply:(c,s,it)=>c.baseAdd += 4*lv(it)},
   {id:'turntally',  n:'日めくり',   ic:'📆', tag:'累積', track:'turn', every:1, unit:'ターン',
     d:'1ターン経過するごとに 基礎スコア +3',
     apply:(c,s,it)=>c.baseAdd += 3*lv(it)},
+  // 養殖系：盤面に特殊フルーツを自分で供給する
+  {id:'silvernursery', n:'銀の苗床', ic:'🌱', tag:'累積', track:'clear', every:80, unit:'個', reset:true,
+    d:'フルーツを80個消すごとに、盤面のランダムな1マスを銀にする',
+    apply:()=>{},
+    fire: async () => {
+      const pool = [];
+      for(let i=0;i<S.w*S.h;i++) if(S.grid[i] && !S.grid[i].sp) pool.push(i);
+      if(!pool.length) return 0;
+      const i = pick(pool);
+      S.grid[i].sp = 'silver'; sync(false);
+      announce('銀の実がなった', SP.silver.col);
+      floatText(i, '銀', SP.silver.col, {cls:'fx', dy:0.58});
+      await sleep(T(520));
+      return 0;
+    }},
+  {id:'alchemyfurnace', n:'錬金炉', ic:'⚗️', tag:'累積', track:'sp:silver', every:5, unit:'個', reset:true,
+    d:'銀を5個消すごとに、盤面のランダムな1マスを金にする',
+    apply:()=>{},
+    fire: async () => {
+      const pool = [];
+      for(let i=0;i<S.w*S.h;i++) if(S.grid[i] && !S.grid[i].sp) pool.push(i);
+      if(!pool.length) return 0;
+      const i = pick(pool);
+      S.grid[i].sp = 'gold'; sync(false);
+      announce('銀が金に変わった', SP.gold.col);
+      floatText(i, '黄金', SP.gold.col, {cls:'fx', dy:0.58});
+      await sleep(T(520));
+      return 0;
+    }},
+
+  // 複利系：カウンターに対して指数で伸びる。序盤は誤差、後半で桁が変わる。
+  {id:'compound', n:'複利の実', ic:'📈', tag:'累積', track:'proc', every:1, unit:'回',
+    d:'固有効果が1回発動するごとに スコア倍率 ×1.02（複利）',
+    apply:(c,s,it)=>c.mults.push(Math.pow(1.02, lv(it)))},
+  {id:'compoundharvest', n:'複利の帳簿', ic:'📊', tag:'累積', track:'clear', every:60, unit:'個',
+    d:'フルーツを60個消すごとに スコア倍率 ×1.12（複利）',
+    apply:(c,s,it)=>c.mults.push(Math.pow(1.12, lv(it)))},
+  {id:'compoundchain', n:'複利の渦', ic:'🌪️', tag:'累積', track:'chain', every:2, unit:'連鎖',
+    d:'連鎖が2回起きるごとに スコア倍率 ×1.08（複利）',
+    apply:(c,s,it)=>c.mults.push(Math.pow(1.08, lv(it)))},
+
   {id:'grapeburst', n:'ぶどうの醸し壺', ic:'🍷', tag:'累積', need:'grape',
     track:'fruit:grape', every:30, unit:'個', reset:true,
     d:'ぶどうを30個消すごとに、盤面のぶどうを一斉消去',
@@ -540,21 +627,42 @@ FRUITS.forEach(f => ITEMS.push({
   apply:(c, s, it) => { c.fruitMul[f.id] = (c.fruitMul[f.id] || 1) + TALLY_GAIN * lv(it); }
 }));
 
-/* ---------------- たからもの（§10） ---------------- */
+/* ---------------- たからもの（§10） ----------------
+   dl(level) で効果の文言を作り、apply も level 倍で伸びる。
+   枠が満杯のとき、新しいたからものを重ねてレベルを上げられる。 */
+function treasure(id, n, ic, dl, apply){
+  return {id, n, ic, dl, d:dl(1), apply};
+}
 const TREASURES = [
-  {id:'urn',   n:'豊穣の壺',     ic:'🏺', d:'種の出現率 +3%',            apply:c=>c.seedAdd+=0.03},
-  {id:'card',  n:'商人の名刺',   ic:'💳', d:'ストアの候補が4個になる',    apply:c=>c.storeSize+=1},
-  {id:'hoe',   n:'古びた鍬',     ic:'⛏️', d:'基礎スコア +4',              apply:c=>c.baseAdd+=4},
-  {id:'sun',   n:'太陽の欠片',   ic:'☀️', d:'全フルーツの効果率 +8%',     apply:c=>c.chanceAdd+=0.08},
-  {id:'mirrorm',n:'月光の鏡',    ic:'🌙', d:'常にスコア倍率 ×1.2',        apply:c=>c.mults.push(1.2)},
-  {id:'diary', n:'農夫の日誌',   ic:'📓', d:'アイテム枠 +1',              apply:c=>c.slotAdd+=1},
-  {id:'blue',  n:'爆薬の設計図', ic:'📐', d:'爆弾の効果範囲 +1',          apply:c=>c.bombAdd+=1},
-  {id:'bank',  n:'種銀行',       ic:'🏦', d:'ステージ開始時に種 +2',      apply:c=>c.startSeeds+=2},
-  {id:'cal',   n:'収穫暦',       ic:'📅', d:'制限ターン +3',              apply:c=>c.turnAdd+=3},
-  {id:'spark', n:'種火',         ic:'🕯️', d:'ステージ開始時にアイテム1個獲得', apply:c=>c.startItems+=1},
-  {id:'crown', n:'黄金の王冠',   ic:'👑', d:'黄金の爆発の倍率 +1',        apply:c=>c.goldMultAdd+=1},
-  {id:'catalog',n:'品種台帳',    ic:'📔', d:'「にせもの」系の出現率倍率 +0.5（×2 → ×2.5）', apply:c=>c.fakeBonus+=0.5}
+  // apply はレベル回数ぶん呼ばれるので、中では1レベルぶんの効果だけを書く
+  treasure('urn','豊穣の壺','🏺',
+    v=>`種の出現率 +${3*v}%`,                        c=>c.seedAdd += 0.03),
+  treasure('card','商人の名刺','💳',
+    v=>`ストアの候補 +${v}個`,                        c=>c.storeSize += 1),
+  treasure('hoe','古びた鍬','⛏️',
+    v=>`基礎スコア +${4*v}`,                          c=>c.baseAdd += 4),
+  treasure('sun','太陽の欠片','☀️',
+    v=>`全フルーツの効果率 +${8*v}%`,                 c=>c.chanceAdd += 0.08),
+  treasure('mirrorm','月光の鏡','🌙',
+    v=>`常にスコア倍率 ×${Math.pow(1.2,v).toFixed(2)}`, c=>c.mults.push(1.2)),
+  treasure('diary','農夫の日誌','📓',
+    v=>`アイテム枠 +${v}`,                            c=>c.slotAdd += 1),
+  treasure('blue','爆薬の設計図','📐',
+    v=>`爆弾の効果範囲 +${v}`,                        c=>c.bombAdd += 1),
+  treasure('bank','種銀行','🏦',
+    v=>`ステージ開始時に種 +${2*v}`,                  c=>c.startSeeds += 2),
+  treasure('cal','収穫暦','📅',
+    v=>`制限ターン +${3*v}`,                          c=>c.turnAdd += 3),
+  treasure('spark','種火','🕯️',
+    v=>`ステージ開始時にアイテム${v}個獲得`,          c=>c.startItems += 1),
+  treasure('crown','黄金の王冠','👑',
+    v=>`黄金の爆発の倍率 +${v}`,                      c=>c.goldMultAdd += 1),
+  treasure('catalog','品種台帳','📔',
+    v=>`「にせもの」系の出現率倍率 +${(0.5*v).toFixed(1)}`, c=>c.fakeBonus += 0.5)
 ];
+
+// 表示用の説明文（たからものはレベルに応じて変わる）
+function descOf(x){ return x.dl ? x.dl(LV(x)) : x.d; }
 
 /* ---------------- ステージ（§5） ---------------- */
 const STAGES = [
@@ -578,7 +686,7 @@ function stageData(i){
    ========================================================================= */
 const S = {
   stage:0, turns:0, turnsMax:0, harvest:0, target:0,
-  seeds:0, bombs:0, items:[], treasures:[], slots:CONFIG.startSlots,
+  seeds:0, bombs:0, items:[], treasures:[], slots:CONFIG.startSlots, lifetime:0,
   w:8, h:8, grid:[], fruitIds:[], stageCleared:0, counters:{},
   busy:false, sel:null, bombMode:false, uid:0, store:null, afterStore:null,
   spd:(SPEEDS.find(s => s.id === DEFAULT_SPEED) || SPEEDS[1]).v
@@ -598,6 +706,8 @@ const pick = a => a[rnd(a.length)];
    ・apply を持つもの … 到達段階に応じて常時効果が伸びる（リセットしない）
    ・fire  を持つもの … every に達するたび1回発動し、その分カウンターを消費する
    ========================================================================= */
+const LV = x => x.level || 1;
+
 function bump(key, n){ S.counters[key] = (S.counters[key] || 0) + (n === undefined ? 1 : n); }
 function cnt(key){ return S.counters[key] || 0; }
 function lv(it){ return Math.floor(cnt(it.track) / it.every); }
@@ -605,6 +715,7 @@ function lv(it){ return Math.floor(cnt(it.track) / it.every); }
 // 消えたセルを数える（clearCells から一括で呼ぶので二重計上が起きない）
 function countCell(cell){
   if(!cell) return;
+  bump('clear');
   bump('fruit:' + cell.f);
   if(cell.sp){
     bump('sp:' + cell.sp);
@@ -626,6 +737,16 @@ async function runTriggers(c, chainMul){
   return total;
 }
 
+/* 農園の地力：累計収穫量が10倍になるごとに基礎スコアが永続的に上がる。
+   ステージをまたいで積み上がる唯一の数値で、目標値の上昇に対抗する土台になる。 */
+function soilLevel(){
+  if(S.lifetime < CONFIG.soilBase) return 0;
+  return Math.floor(Math.log10(S.lifetime / CONFIG.soilBase)) + 1;
+}
+function soilNext(){
+  return Math.ceil(CONFIG.soilBase * Math.pow(10, soilLevel()));
+}
+
 /* ---------------- 効果集計（ビルドの心臓部） ---------------- */
 function ctx(){
   const c = {
@@ -637,7 +758,7 @@ function ctx(){
     goldCut:0, goldRange:0, goldMultAdd:0,
     silverCut:0, silverEatAdd:0, silverMultAdd:0,
     rainbowCut:0, rainbowMultAdd:0, rainbowConvAdd:0, fakeCountAdd:0,
-    blackChanceMul:1, blackMultAdd:0,
+    blackChanceMul:1, blackMultAdd:0, blackFuse:false,
     storeSize:CONFIG.storeSize, slotAdd:0, bombAdd:0,
     startSeeds:0, startItems:0, turnAdd:0
   };
@@ -650,9 +771,12 @@ function ctx(){
     c.multSrc.push({item:cur, v});
     return this.length;
   };
-  const run = x => { cur = x; x.apply(c, S, x); };
+  // アイテム／たからものはレベルの回数だけ効果を重ねる（倍率は掛け算で複利になる）
+  const run = x => { cur = x; const n = LV(x); for(let k=0;k<n;k++) x.apply(c, S, x); };
   all.filter(x => !x.late).forEach(run);
   all.filter(x =>  x.late).forEach(run);
+  c.baseAdd += CONFIG.soilGain * soilLevel();     // 永続成長ぶん
+  c.storeSize += Math.floor(S.stage / CONFIG.storeGrowth);
   return c;
 }
 function staticMult(c){
@@ -662,6 +786,20 @@ function staticMult(c){
   return m;
 }
 const fmtMult = m => '×' + (Math.round(m*100)/100);
+
+/* 連鎖倍率。geometric では連鎖が深いほど指数的に跳ね上がる。
+   chainAdd は「1連鎖ごとの伸び率」への加算（geometric なら 1.6 → 1.75 のように効く）。 */
+function chainMultiplier(chain, c){
+  let m;
+  if(CONFIG.chainMode === 'geometric'){
+    const g = CONFIG.chainGrowth + (c ? c.chainAdd : 0);
+    m = Math.pow(g, chain - 1);
+  } else {
+    m = 1 + (chain - 1) * (CONFIG.baseChain + (c ? c.chainAdd : 0));
+  }
+  if(CONFIG.chainCap > 0) m = Math.min(m, CONFIG.chainCap);
+  return m;
+}
 
 // フルーツ1個ぶんの基礎スコア（フルーツ別加算と累積倍率まで反映）
 function cellValue(cell, c){
@@ -691,6 +829,33 @@ function spawnTable(){
           black: CONFIG.blackChance * c.blackChanceMul};
 }
 function refreshSpawn(){ S.spawn = spawnTable(); }
+
+/* いま盤面に出るフルーツの一覧。果樹園の地図などで種類数が減る。 */
+function activeFruitIds(){
+  const st = stageData(S.stage), c = ctx();
+  const n = Math.max(3, Math.min(FRUITS.length, st.fruits - c.typeCut));
+  return FRUITS.slice(0, n).map(f => f.id);
+}
+
+/* 登場フルーツが変わったら、盤面に残っている該当フルーツを他の種類へ置き換える。
+   アイテム取得直後に呼ぶので、その場で効果が現れる。 */
+async function refreshFruitSet(){
+  const next = activeFruitIds();
+  const removed = S.fruitIds.filter(id => !next.includes(id));
+  S.fruitIds = next;
+  refreshSpawn();
+  if(!removed.length) return;
+
+  let n = 0;
+  for(let i=0;i<S.w*S.h;i++){
+    const cell = S.grid[i];
+    if(cell && removed.includes(cell.f)){ setFruit(i, pick(next)); n++; }
+  }
+  announce(`${removed.map(id => F[id].name).join('・')}が畑から消えた`, 'var(--lantern)');
+  await sleep(T(700));
+  if(n && findGroups().length) await resolve();
+  if(!hasMove()){ reshuffle(); sync(false); await sleep(T(300)); }
+}
 
 /* 実際に盤面へ出る割合（変換後）。内訳画面で使う。 */
 function spawnRates(){
@@ -801,6 +966,32 @@ function findGroups(){
   return out;
 }
 
+/* 手詰まりのときの作り直し。特殊フルーツはその場に残したまま、
+   通常フルーツの種類だけを振り直す。 */
+function reshuffle(){
+  refreshSpawn();
+  const t = S.spawn;
+  const rollFruit = () => {
+    let r = Math.random() * t.total, f = S.fruitIds[S.fruitIds.length-1];
+    for(let i=0;i<S.fruitIds.length;i++){ r -= t.w[i]; if(r <= 0){ f = S.fruitIds[i]; break; } }
+    return f;
+  };
+  let guard = 0;
+  do{
+    for(let i=0;i<S.w*S.h;i++){
+      const cell = S.grid[i];
+      if(!cell || cell.sp) continue;          // 特殊フルーツは触らない
+      cell.f = rollFruit();
+    }
+    guard++;
+  } while(guard < 60 && (findGroups().length || !hasMove()));
+
+  for(let i=0;i<S.w*S.h;i++){
+    const cell = S.grid[i];
+    if(cell && !cell.sp) setFruit(i, cell.f);
+  }
+}
+
 function hasMove(){
   const {w,h,grid} = S;
   for(let y=0;y<h;y++) for(let x=0;x<w;x++){
@@ -890,9 +1081,11 @@ function hud(){
   $('itemSlots').innerHTML = Array.from({length: Math.max(maxSlots, S.items.length)}, (_,i)=>{
     const it = S.items[i];
     if(!it) return `<div class="slot"></div>`;
-    const badge = it.track
-      ? `<span class="cnt ${lv(it) ? '' : 'zero'}">${it.reset ? cnt(it.track) : (lv(it) ? 'Lv' + lv(it) : cnt(it.track))}</span>`
-      : '';
+    const badge = LV(it) > 1
+      ? `<span class="cnt">Lv${LV(it)}</span>`
+      : it.track
+        ? `<span class="cnt ${lv(it) ? '' : 'zero'}">${it.reset ? cnt(it.track) : (lv(it) ? '×' + lv(it) : cnt(it.track))}</span>`
+        : '';
     return `<button class="slot filled ${it.neg?'neg':''}" data-info="item:${i}">
       ${badge}<span class="ic">${it.ic}</span><span class="nm">${it.n}</span></button>`;
   }).join('');
@@ -900,6 +1093,7 @@ function hud(){
     const t = S.treasures[i];
     if(!t) return `<div class="slot"></div>`;
     return `<button class="slot filled tre" data-info="tre:${i}">
+      ${LV(t) > 1 ? `<span class="cnt">Lv${LV(t)}</span>` : ''}
       <span class="ic">${t.ic}</span><span class="nm">${t.n}</span></button>`;
   }).join('');
   $('btnBomb').disabled = S.bombs <= 0 || S.busy;
@@ -964,7 +1158,7 @@ async function trySwap(a, b){
     S.busy = false; hud(); return;
   }
   S.turns++;
-  await resolve();
+  await resolve(true);          // プレイヤー自身のマッチ
   await fakePhase();
   await endTurn();
 }
@@ -999,12 +1193,16 @@ function bornType(len, c){
   return null;
 }
 
-// グループの重心にいちばん近いセルを返す
-function centerCell(g){
+/* グループの重心にいちばん近いセルを返す。
+   avoidSpecial を指定すると、すでに特殊フルーツになっているマスは選ばない。
+   （既存の特殊フルーツを新しい特殊フルーツで上書きして、効果を不発にしないため） */
+function centerCell(g, avoidSpecial){
   const cx = g.reduce((a,i) => a + (i%S.w), 0) / g.length;
   const cy = g.reduce((a,i) => a + ((i/S.w)|0), 0) / g.length;
-  let best = g[0], bd = Infinity;
-  for(const i of g){
+  const cand = avoidSpecial ? g.filter(i => S.grid[i] && !S.grid[i].sp) : g;
+  if(!cand.length) return null;
+  let best = cand[0], bd = Infinity;
+  for(const i of cand){
     const d = Math.pow(i%S.w - cx, 2) + Math.pow(((i/S.w)|0) - cy, 2);
     if(d < bd){ bd = d; best = i; }
   }
@@ -1046,13 +1244,9 @@ async function detonate(fuse, c, chainMul, protect){
     const silvers = fuse.filter(i => S.grid[i] && S.grid[i].sp === 'silver');
     const rains   = fuse.filter(i => S.grid[i] && S.grid[i].sp === 'rainbow');
 
-    // 金 + 金 → 中心の1つが虹色フルーツに変化して盤面に残る
+    // 金 + 金 → 両方の爆発を出しきってから、中心の1つが虹色フルーツへ変化して残る
     let becomeRainbow = null;
-    if(golds.length >= 2){
-      becomeRainbow = centerCell(golds);
-      golds = golds.filter(i => i !== becomeRainbow);
-      fuse  = fuse.filter(i => i !== becomeRainbow);
-    }
+    if(golds.length >= 2) becomeRainbow = centerCell(golds);
 
     // 起爆するフルーツを光らせて溜めをつくる
     fuse.forEach(i => {
@@ -1072,6 +1266,7 @@ async function detonate(fuse, c, chainMul, protect){
     const zone = new Map();
     const put = (i, m) => {
       if(!S.grid[i] || src.has(i) || i === becomeRainbow || safe.has(i)) return;
+      if(CONFIG.blackManualOnly && !c.blackFuse && S.grid[i].sp === 'black') return;   // 黒は他の効果では壊れない
       zone.set(i, Math.max(zone.get(i) || 0, m));
     };
 
@@ -1097,8 +1292,12 @@ async function detonate(fuse, c, chainMul, protect){
     if(silvers.length){
       const eat = (silvers.length >= 2 ? CONFIG.silverPairEat : CONFIG.silverEat) + c.silverEatAdd;
       const pool = [];
-      for(let i=0;i<S.w*S.h;i++)
-        if(S.grid[i] && !src.has(i) && i !== becomeRainbow && !safe.has(i)) pool.push(i);
+      for(let i=0;i<S.w*S.h;i++){
+        const cell = S.grid[i];
+        if(!cell || src.has(i) || i === becomeRainbow || safe.has(i)) continue;
+        if(CONFIG.blackManualOnly && !c.blackFuse && cell.sp === 'black') continue;
+        pool.push(i);
+      }
       shuffled(pool).slice(0, eat).forEach(i => put(i, spMult('silver', c)));
     }
 
@@ -1137,19 +1336,21 @@ async function detonate(fuse, c, chainMul, protect){
       if(cell.sp) next.push(i);       // 次の波まで盤面に残す
     }
 
-    // 虹色フルーツの誕生
+    const kill = new Set(fuse);
+    for(const [i] of zone) if(!next.includes(i)) kill.add(i);
+    if(becomeRainbow) kill.delete(becomeRainbow);   // 変化するぶんは消さない
+    S.stageCleared += kill.size;
+    await clearCells(kill);
+
+    // 爆発を処理しきってから虹色フルーツへ変化する
     if(becomeRainbow && S.grid[becomeRainbow]){
       S.grid[becomeRainbow].sp = 'rainbow';
       const el = tileEls.get(S.grid[becomeRainbow].id);
       if(el) el.firstElementChild.classList.remove('charge');
       sync(false);
-      floatText(becomeRainbow, '虹色', SP.rainbow.col, {cls:'fx', dy:0.58, delay:T(160)});
+      floatText(becomeRainbow, '虹色', SP.rainbow.col, {cls:'fx', dy:0.58});
+      await sleep(T(320));
     }
-
-    const kill = new Set(fuse);
-    for(const [i] of zone) if(!next.includes(i)) kill.add(i);
-    S.stageCleared += kill.size;
-    await clearCells(kill);
 
     if(next.length) await sleep(T(260));   // 残った特殊フルーツを見せる間
     fuse = next;
@@ -1157,7 +1358,9 @@ async function detonate(fuse, c, chainMul, protect){
   return total;
 }
 
-async function resolve(freeAction){
+/* manual: プレイヤー自身の入れ替えによる処理かどうか。
+   黒いフルーツは manual な最初の消去でしか反応しない。 */
+async function resolve(manual){
   const c = ctx();
   let chain = 0, raw = 0, dyn = 0, procs = 0, seedGain = 0;
 
@@ -1167,7 +1370,7 @@ async function resolve(freeAction){
     chain++;
     if(chain >= 2) bump('chain');
     const extras = new Set();
-    let chainMul = 1 + (chain-1) * (CONFIG.baseChain + c.chainAdd);
+    let chainMul = chainMultiplier(chain, c);
 
     for(const g of groups){
       let gMul = 1, gBonus = 0, gBase = 0;
@@ -1222,12 +1425,19 @@ async function resolve(freeAction){
     const all = new Set();
     groups.forEach(g => g.forEach(i => all.add(i)));
 
+    // 黒いフルーツは、プレイヤー自身が作ったマッチ（そのターンの最初の消去）でしか反応しない。
+    // それ以外では消去対象から外し、盤面に残す。
+    if(CONFIG.blackManualOnly && !c.blackFuse && !(manual && chain === 1)){
+      for(const i of [...all]) if(S.grid[i] && S.grid[i].sp === 'black') all.delete(i);
+    }
+
     // まとめ消しの中心に特殊フルーツが残る（4個で銀、5個で黄金）
     const born = [];
     for(const g of groups){
       const sp = bornType(g.length, c);
       if(!sp) continue;
-      const seed = centerCell(g);
+      const seed = centerCell(g, true);      // すでに特殊なマスは種にしない
+      if(seed === null) continue;            // 全部が特殊なら生成しない（既存の効果を優先）
       born.push({i:seed, sp});
       all.delete(seed);
     }
@@ -1245,21 +1455,26 @@ async function resolve(freeAction){
     const fuse = [...all].filter(i => S.grid[i] && S.grid[i].sp);
     fuse.forEach(i => all.delete(i));
 
-    // 生まれた特殊フルーツを確定（消さずに盤面へ残す）
-    born.forEach(b => {
-      if(!S.grid[b.i]) return;
-      S.grid[b.i].sp = b.sp;
-      floatText(b.i, SP[b.sp].n, SP[b.sp].col, {cls:'fx', dy:0.58, delay:T(200)});
-    });
-    if(born.length) sync(false);
-
     S.stageCleared += all.size;
     if(chain >= 3) { dyn += c.chain3; c.chain3 = 0; }
     if(chain > 1) floatXY((S.w-1)/2, S.h*0.18, `${chain} 連鎖  ×${Math.round(chainMul*100)/100}`,
                           '#f5b942', {cls:'grp', delay:T(60)});
 
     await clearCells(all);
+
+    // 既存の特殊フルーツの効果をすべて処理してから、
+    // 新しい特殊フルーツを生成する（効果不発を防ぐ）
     if(fuse.length) raw += await detonate(fuse, c, chainMul, born.map(b => b.i));
+
+    if(born.length){
+      born.forEach(b => {
+        if(!S.grid[b.i]) return;
+        S.grid[b.i].sp = b.sp;
+        floatText(b.i, SP[b.sp].n, SP[b.sp].col, {cls:'fx', dy:0.58});
+      });
+      sync(false);
+      await sleep(T(320));
+    }
     await gravity();
     raw += await runTriggers(c, chainMul);
   }
@@ -1280,7 +1495,7 @@ async function resolve(freeAction){
 
   if(!hasMove()){
     toast('動かせる手がないため盤面を作り直しました');
-    buildBoard(); sync(); await sleep(T(300));
+    reshuffle(); sync(false); await sleep(T(300));
   }
 }
 
@@ -1343,7 +1558,7 @@ async function fakePhase(){
 
   // 書き換えでマッチが成立していれば、通常どおり消去・連鎖を処理する
   if(findGroups().length) await resolve();
-  if(!hasMove()){ buildBoard(); sync(); await sleep(T(300)); }
+  if(!hasMove()){ reshuffle(); sync(false); await sleep(T(300)); }
 }
 
 async function endTurn(){
@@ -1356,7 +1571,7 @@ async function endTurn(){
 
 /* ---------------- 爆弾（§9.3 暫定仕様） ---------------- */
 /* 爆弾の効果範囲。黒いフルーツは対象から除外する（爆弾では壊せない）。 */
-function bombZone(idx, r){
+function bombZone(idx, r, c){
   const x = idx%S.w, y = (idx/S.w)|0, set = new Set();
   let blocked = 0;
   for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
@@ -1364,7 +1579,7 @@ function bombZone(idx, r){
     if(nx<0||ny<0||nx>=S.w||ny>=S.h) continue;
     const ni = ny*S.w+nx, cell = S.grid[ni];
     if(!cell) continue;
-    if(cell.sp === 'black'){ blocked++; continue; }
+    if(cell.sp === 'black' && !(c && c.blackFuse)){ blocked++; continue; }
     set.add(ni);
   }
   return {set, blocked};
@@ -1375,7 +1590,7 @@ async function useBomb(idx){
   S.bombs--; S.bombMode = false;
   board.classList.remove('bombing');
   S.busy = true;
-  const z = bombZone(idx, r);
+  const z = bombZone(idx, r, c);
   const set = z.set;
   if(z.blocked) toast('黒いフルーツは爆弾では壊せない');
   let raw = 0;
@@ -1388,7 +1603,7 @@ async function useBomb(idx){
   if(fuse.length) raw += await detonate(fuse, c, 1);
   S.harvest += Math.round(raw * staticMult(c));
   await gravity();
-  await resolve(true);            // 誘爆した連鎖も通常どおり処理（ターンは消費しない）
+  await resolve();                // 誘爆した連鎖も通常どおり処理（ターンは消費しない）
   S.busy = false;
   hud();
   if(S.harvest >= S.target) await stageClear();
@@ -1397,10 +1612,22 @@ async function useBomb(idx){
 /* ============================================================================
    ストア（§6.3）
    ========================================================================= */
+/* 同じアイテムを取ると枠を消費せずレベルが上がる。効果はレベル回数ぶん重なる。 */
+function giveItem(it){
+  const own = S.items.find(x => x.id === it.id);
+  if(own){
+    own.level = Math.min(CONFIG.itemMaxLv, LV(own) + 1);
+    return own.level;
+  }
+  S.items.push({...it, level:1});
+  return 1;
+}
+
 function rollStore(){
   const c = ctx(), n = c.storeSize, pool = [];
   for(const it of ITEMS){
     if(it.unique && S.items.some(x => x.id === it.id)) continue;
+    if(S.items.some(x => x.id === it.id && LV(x) >= CONFIG.itemMaxLv)) continue;
     if(it.need && !S.fruitIds.includes(it.need)) continue;
     pool.push(it);
   }
@@ -1420,11 +1647,15 @@ function openStore(after){
 }
 
 /* ストアを閉じる。ラウンド開始時のストアだけは閉じたあとの処理が違う。 */
-function finishStore(){
+async function finishStore(){
   closeSheet();
   hud();
   const f = S.afterStore;
   S.afterStore = null;
+  S.busy = true;
+  await refreshFruitSet();       // 果樹園の地図などを取得した場合、その場で盤面へ反映する
+  S.busy = false;
+  hud();
   if(f) f(); else turnReady();
 }
 
@@ -1434,12 +1665,17 @@ function renderStore(discardMode){
   const full = S.items.length >= maxSlots;
   const roundStart = !!S.afterStore;
 
-  const cards = S.store.map((it,i) =>
-    `<button class="card ${it.neg?'neg':''}" data-buy="${i}">
+  const cards = S.store.map((it,i) => {
+    const own = S.items.find(x => x.id === it.id);
+    const maxed = own && LV(own) >= CONFIG.itemMaxLv;
+    return `<button class="card ${it.neg?'neg':''} ${own?'on':''}" data-buy="${i}" ${maxed?'disabled style="opacity:.4"':''}>
        <span class="ic">${it.ic}</span>
-       <span style="flex:1"><span class="t">${it.n}<span class="tag">${it.tag}</span></span>
-       <div class="d">${it.d}</div></span>
-     </button>`).join('');
+       <span style="flex:1"><span class="t">${it.n}<span class="tag">${it.tag}</span>
+         ${own ? `<span class="tag" style="border-color:var(--lantern);color:var(--lantern)">${
+           maxed ? `Lv${LV(own)} 上限` : `Lv${LV(own)} → Lv${LV(own)+1}`}</span>` : ''}</span>
+       <div class="d">${it.d}${own && !maxed ? '<br><b style="color:var(--lantern)">重ねると効果がもう一段ぶん乗る（枠は消費しない）</b>' : ''}</div></span>
+     </button>`;
+  }).join('');
 
   const dropList = S.items.map((it,i) =>
     `<button class="card ${it.neg?'neg':''}" data-drop="${i}">
@@ -1459,7 +1695,8 @@ function renderStore(discardMode){
 
   const treList = S.treasures.length
     ? S.treasures.map(t => `<div class="ownrow tre">
-        <span class="ic">${t.ic}</span><span class="t">${t.n}</span><span class="d">${t.d}</span>
+        <span class="ic">${t.ic}</span><span class="t">${t.n}</span><span class="d">${descOf(t)}</span>
+        ${LV(t) > 1 ? `<span class="lv">Lv${LV(t)}</span>` : ''}
       </div>`).join('')
     : '';
 
@@ -1468,7 +1705,7 @@ function renderStore(discardMode){
   sheet(`
     <h2>${roundStart ? 'ラウンド開始' : '種を蒔く'}</h2>
     <div class="sub">${roundStart
-      ? `${stageData(S.stage).name}　まずアイテムを1つ選ぶ`
+      ? `${stageData(S.stage).name}　まずアイテムを1つ選ぶ（種${S.seeds}個で引き直せる）`
       : `残り ${S.turnsMax - S.turns} ターン ・ 収穫 ${S.harvest.toLocaleString()} / ${S.target.toLocaleString()} ・ 倍率 ${fmtMult(staticMult(c))}`}</div>
 
     ${discardMode ? `<div class="sub" style="color:var(--bad)">アイテム枠が満杯です。手放すアイテムを選んでください。</div>${dropList}
@@ -1498,12 +1735,15 @@ function renderStore(discardMode){
   `, el => {
     el.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
       const it = S.store[+b.dataset.buy];
-      if(S.items.length >= maxSlots){ S.pending = it; renderStore(true); return; }
-      S.items.push(it); finishStore();
+      const own = S.items.find(x => x.id === it.id);
+      if(!own && S.items.length >= maxSlots){ S.pending = it; renderStore(true); return; }
+      const nl = giveItem(it);
+      if(own) toast(`${it.n} が Lv${nl} になった`);
+      finishStore();
     });
     el.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => {
       S.items.splice(+b.dataset.drop, 1);
-      S.items.push(S.pending); S.pending = null;
+      giveItem(S.pending); S.pending = null;
       finishStore();
     });
     const act = el.querySelector('[data-act="reroll"]');
@@ -1513,7 +1753,7 @@ function renderStore(discardMode){
       rollStore(); renderStore(); hud();
     };
     const sk = el.querySelector('[data-act="skip"]');
-    if(sk) sk.onclick = finishStore;
+    if(sk) sk.onclick = () => finishStore();
     const cd = el.querySelector('[data-act="cancelDrop"]');
     if(cd) cd.onclick = () => { S.pending = null; renderStore(); };
     const bd = el.querySelector('[data-act="bd"]');
@@ -1537,11 +1777,10 @@ function startStage(){
   S.items = [];
   const c1 = ctx();                       // アイテムをリセットした状態でたからものを再評価
   S.turnsMax = st.turns + c1.turnAdd;
-  S.seeds = c1.startSeeds;
-  const types = Math.max(3, st.fruits - c1.typeCut);
-  S.fruitIds = FRUITS.slice(0, Math.min(FRUITS.length, types)).map(f => f.id);
+  S.seeds = CONFIG.roundSeeds + c1.startSeeds;
+  S.fruitIds = activeFruitIds();
 
-  for(let i=0;i<c1.startItems;i++){ rollStore(); S.items.push(pick(S.store)); }
+  for(let i=0;i<c1.startItems;i++){ rollStore(); giveItem(pick(S.store)); }
 
   tileEls.forEach(el => el.remove()); tileEls.clear();
   buildBoard();
@@ -1565,41 +1804,135 @@ function startStage(){
 
 async function stageClear(){
   S.busy = true;
+  const soilBefore = soilLevel();
+  S.lifetime += Math.max(0, S.harvest);   // 累計収穫量は永続（地力の元）
+  const soilAfter = soilLevel();
   const gained = S.seeds;                 // 余った種は爆弾へ（§9.3）
   S.bombs += gained;
   S.seeds = 0;
   S.slots = Math.min(CONFIG.maxSlots, S.slots + CONFIG.slotGain);
   hud();
 
-  const canTake = S.treasures.length < CONFIG.treasureSlots;
   const pool = TREASURES.filter(t => !S.treasures.some(x => x.id === t.id));
   const offer = [];
   while(offer.length < 3 && pool.length) offer.push(...pool.splice(rnd(pool.length), 1));
 
-  const body = canTake && offer.length
-    ? `<h3 class="sec">たからものを発見した</h3>` + offer.map((t,i)=>
-        `<button class="card tre" data-tre="${i}">
-          <span class="ic">${t.ic}</span>
-          <span><span class="t">${t.n}</span><div class="d">${t.d}</div></span></button>`).join('')
-    : `<div class="sub">たからもの枠が満杯のため、今回は持ち帰れなかった。</div>`;
-
-  sheet(`
+  const nextStage = () => { S.stage++; closeSheet(); startStage(); };
+  const head = `
     <h2>収穫達成</h2>
     <div class="sub">${stageData(S.stage).name} ／ ${S.harvest.toLocaleString()} 収穫</div>
     <div class="doc">
       余った不思議な種 ${gained} 個が <b>爆弾</b> になった。<br>
       アイテム枠が <b>${Math.min(CONFIG.maxSlots, S.slots)}</b> に増えた。<br>
-      持っていたアイテムは畑に還った。
-    </div>
-    ${body}
-    <div class="row" style="margin-top:12px"><button class="btn primary" data-act="next">次の農園へ</button></div>
-  `, el => {
-    el.querySelectorAll('[data-tre]').forEach(b => b.onclick = () => {
-      S.treasures.push(offer[+b.dataset.tre]);
-      S.stage++; closeSheet(); startStage();
+      持っていたアイテムは畑に還った。<br>
+      累計収穫量 <b>${Math.round(S.lifetime).toLocaleString()}</b>
+      ${soilAfter > soilBefore
+        ? `／ <b style="color:var(--lantern)">地力が Lv${soilAfter} に上がった（基礎スコア +${CONFIG.soilGain * soilAfter}）</b>`
+        : `／ 地力 Lv${soilAfter}（次は ${soilNext().toLocaleString()}）`}
+    </div>`;
+
+  const owned = (attr) => S.treasures.map((t,i) => `
+    <button class="card tre" data-${attr}="${i}">
+      <span class="ic">${t.ic}</span>
+      <span style="flex:1"><span class="t">${t.n}
+        ${LV(t) > 1 ? `<span class="tag">Lv${LV(t)}</span>` : ''}</span>
+        <div class="d">${descOf(t)}</div></span>
+    </button>`).join('');
+
+  // ---- 発見したたからものを選ぶ ----
+  const draw = () => {
+    const body = offer.length
+      ? `<h3 class="sec">たからものを発見した</h3>` + offer.map((t,i)=>
+          `<button class="card tre" data-tre="${i}">
+            <span class="ic">${t.ic}</span>
+            <span style="flex:1"><span class="t">${t.n}</span><div class="d">${t.d}</div></span>
+          </button>`).join('')
+      : `<div class="sub">今回は何も見つからなかった。</div>`;
+    const full = S.treasures.length >= CONFIG.treasureSlots;
+
+    sheet(`${head}${body}
+      ${full && offer.length ? `<div class="sub" style="margin-top:8px;color:var(--lantern)">
+        枠が満杯です。選ぶと、入れ替えるか重ねて強化するかを決められます。</div>` : ''}
+      ${S.treasures.length ? `<h3 class="sec">いま持っているたからもの</h3>
+        <div class="own">${S.treasures.map(t => `<div class="ownrow tre">
+          <span class="ic">${t.ic}</span><span class="t">${t.n}</span>
+          <span class="d">${descOf(t)}</span>
+          ${LV(t) > 1 ? `<span class="lv">Lv${LV(t)}</span>` : ''}</div>`).join('')}</div>` : ''}
+      <div class="row" style="margin-top:12px"><button class="btn primary" data-act="next">次の農園へ</button></div>
+    `, el => {
+      el.querySelectorAll('[data-tre]').forEach(b => b.onclick = () => {
+        const t = offer[+b.dataset.tre];
+        if(S.treasures.length < CONFIG.treasureSlots){
+          S.treasures.push({...t, level:1});
+          nextStage();
+        } else {
+          handle(t);
+        }
+      });
+      el.querySelector('[data-act="next"]').onclick = nextStage;
     });
-    el.querySelector('[data-act="next"]').onclick = () => { S.stage++; closeSheet(); startStage(); };
-  });
+  };
+
+  // ---- 枠が満杯のときの処理：入れ替える／重ねて強化する／捨てる ----
+  const handle = (t, mode) => {
+    if(mode === 'swap' || mode === 'merge'){
+      const merge = mode === 'merge';
+      sheet(`
+        <h2>${t.ic} ${t.n}</h2>
+        <div class="sub">${merge ? '重ねるたからものを選ぶ（Lvが1つ上がる）' : '手放すたからものを選ぶ'}</div>
+        ${S.treasures.map((o,i) => {
+          const capped = merge && LV(o) >= CONFIG.treasureMaxLv;
+          return `<button class="card tre" data-pick="${i}" ${capped ? 'disabled style="opacity:.35"' : ''}>
+            <span class="ic">${o.ic}</span>
+            <span style="flex:1"><span class="t">${o.n}
+              ${LV(o) > 1 ? `<span class="tag">Lv${LV(o)}</span>` : ''}</span>
+              <div class="d">${merge
+                ? (capped ? 'これ以上は強化できない' : `${descOf(o)} → ${o.dl(LV(o)+1)}`)
+                : descOf(o)}</div></span>
+          </button>`;
+        }).join('')}
+        <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="back">戻る</button></div>
+      `, el => {
+        el.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
+          const i = +b.dataset.pick;
+          if(merge) S.treasures[i].level = Math.min(CONFIG.treasureMaxLv, LV(S.treasures[i]) + 1);
+          else      S.treasures[i] = {...t, level:1};
+          hud();
+          nextStage();
+        });
+        el.querySelector('[data-act="back"]').onclick = () => handle(t);
+      }, () => handle(t));
+      return;
+    }
+
+    sheet(`
+      <h2>${t.ic} ${t.n}</h2>
+      <div class="sub">${t.d}<br>たからもの枠が満杯です。どうしますか。</div>
+      <button class="card tre" data-act="swap">
+        <span class="ic">🔄</span>
+        <span style="flex:1"><span class="t">入れ替える</span>
+          <div class="d">持っているたからものを1つ手放して、これを Lv1 で持ち帰る</div></span>
+      </button>
+      <button class="card tre" data-act="merge">
+        <span class="ic">✨</span>
+        <span style="flex:1"><span class="t">重ねて強化する</span>
+          <div class="d">これを捧げて、持っているたからもの1つの Lv を +1 する（最大 Lv${CONFIG.treasureMaxLv}）</div></span>
+      </button>
+      <button class="card" data-act="drop">
+        <span class="ic">🗑️</span>
+        <span style="flex:1"><span class="t">置いていく</span>
+          <div class="d">何も変えずに次の農園へ</div></span>
+      </button>
+      <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="back">選び直す</button></div>
+    `, el => {
+      el.querySelector('[data-act="swap"]').onclick  = () => handle(t, 'swap');
+      el.querySelector('[data-act="merge"]').onclick = () => handle(t, 'merge');
+      el.querySelector('[data-act="drop"]').onclick  = nextStage;
+      el.querySelector('[data-act="back"]').onclick  = draw;
+    }, draw);
+  };
+
+  draw();
 }
 
 function stageFail(){
@@ -1629,6 +1962,103 @@ function newGame(){
 /* ============================================================================
    モーダル / 入力
    ========================================================================= */
+/* ============================================================================
+   セーブ／ロード（テキスト）
+   開発用。バージョンをまたいだ互換は保証しない（読み込み時に警告を出す）。
+   ========================================================================= */
+function saveText(){
+  return JSON.stringify({
+    v:VERSION,
+    stage:S.stage, slots:S.slots, seeds:S.seeds, bombs:S.bombs,
+    lifetime:S.lifetime, spd:S.spd,
+    items:S.items.map(i => [i.id, LV(i)]),
+    treasures:S.treasures.map(t => [t.id, LV(t)])
+  });
+}
+
+function loadText(txt){
+  let o;
+  try{ o = JSON.parse(txt.trim()); }
+  catch(e){ return {ok:false, msg:'テキストを読み取れませんでした'}; }
+  if(!o || typeof o !== 'object' || !Array.isArray(o.items)) return {ok:false, msg:'セーブデータの形式が違います'};
+
+  const warn = [];
+  if(o.v !== VERSION) warn.push(`v${o.v} のデータを v${VERSION} で読み込みました`);
+
+  S.stage    = Math.max(0, o.stage | 0);
+  S.slots    = Math.min(CONFIG.maxSlots, Math.max(1, o.slots | 0 || CONFIG.startSlots));
+  S.lifetime = Math.max(0, +o.lifetime || 0);
+  if(o.spd) { S.spd = +o.spd; applySpeed(); }
+
+  const lost = [];
+  S.treasures = (o.treasures || []).map(([id, l]) => {
+    const t = TREASURES.find(x => x.id === id);
+    if(!t){ lost.push(id); return null; }
+    return {...t, level:Math.min(CONFIG.treasureMaxLv, Math.max(1, l | 0))};
+  }).filter(Boolean).slice(0, CONFIG.treasureSlots);
+
+  const items = o.items.map(([id, l]) => {
+    const it = ITEMS.find(x => x.id === id);
+    if(!it){ lost.push(id); return null; }
+    return {...it, level:Math.min(CONFIG.itemMaxLv, Math.max(1, l | 0))};
+  }).filter(Boolean);
+
+  startStage();                       // 盤面と登場フルーツを組み直す
+  S.items = items;                    // ステージ開始でリセットされるので後から戻す
+  S.seeds = Math.max(0, o.seeds | 0);
+  S.bombs = Math.max(0, o.bombs | 0);
+  closeSheet();
+  refreshSpawn();
+  sync(false);
+  hud();
+  if(lost.length) warn.push(`${lost.length}件は現在のバージョンに存在せず読み飛ばしました`);
+  return {ok:true, msg:warn.join(' ／ ') || '読み込みました'};
+}
+
+function openSaveLoad(back){
+  if(typeof back !== 'function') back = null;
+  const done = () => back ? back() : closeSheet();
+  const draw = (note) => sheet(`
+    <h2>セーブ / ロード</h2>
+    <div class="sub">開発用のテキスト保存です。バージョンをまたぐ互換は保証しません。</div>
+    ${note ? `<div class="sub" style="color:var(--lantern)">${note}</div>` : ''}
+
+    <h3 class="sec">書き出し</h3>
+    <div class="doc" style="font-size:11.5px;color:var(--dim)">
+      いまのステージ・アイテム・たからもの・地力を保存します。長押しで全選択してコピーしてください。
+    </div>
+    <textarea class="save" id="saveOut" readonly>${saveText()}</textarea>
+    <div class="row"><button class="btn" data-act="copy">コピー</button></div>
+
+    <h3 class="sec">読み込み</h3>
+    <div class="doc" style="font-size:11.5px;color:var(--dim)">
+      貼り付けて読み込むと、そのステージを保存時のビルドで開始します。
+    </div>
+    <textarea class="save" id="saveIn" placeholder="ここにセーブテキストを貼り付け"></textarea>
+    <div class="row"><button class="btn primary" data-act="load">読み込む</button></div>
+
+    <div class="row" style="margin-top:14px"><button class="btn ghost" data-act="c">戻る</button></div>
+  `, el => {
+    el.querySelector('[data-act="copy"]').onclick = () => {
+      const ta = document.getElementById('saveOut');
+      ta.removeAttribute('readonly');
+      ta.select(); ta.setSelectionRange(0, 999999);
+      let ok = false;
+      try{ ok = document.execCommand('copy'); }catch(e){}
+      ta.setAttribute('readonly', 'readonly');
+      toast(ok ? 'コピーしました' : '選択しました。長押しでコピーしてください');
+    };
+    el.querySelector('[data-act="load"]').onclick = () => {
+      const txt = document.getElementById('saveIn').value;
+      if(!txt.trim()){ toast('テキストが空です'); return; }
+      const r = loadText(txt);
+      if(r.ok) toast(r.msg); else draw(r.msg);
+    };
+    el.querySelector('[data-act="c"]').onclick = done;
+  }, done);
+  draw();
+}
+
 /* ---------------- 開発用：ステージ選択 ---------------- */
 function openStageSelect(back){
   if(typeof back !== 'function') back = null;
@@ -1667,7 +2097,7 @@ function openStageSelect(back){
       if(S.items.length >= max){ toast('アイテム枠が満杯'); return; }
       rollStore();
       const it = pick(S.store);
-      S.items.push(it); hud(); toast(it.n + ' を取得');
+      giveItem(it); hud(); toast(it.n + ' を取得');
     };
     el.querySelector('[data-act="c"]').onclick = done;
   }, done);
@@ -1683,14 +2113,16 @@ function openCatalog(back){
   const held  = id => S.treasures.some(x => x.id === id);
 
   const card = (x, kind) => {
-    const n = kind === 'item' ? owned(x.id) : (held(x.id) ? 1 : 0);
+    const mine = kind === 'tre' ? S.treasures.find(t => t.id === x.id) : null;
+    const n = kind === 'item' ? owned(x.id) : (mine ? 1 : 0);
     const cls = [kind === 'tre' ? 'tre' : (x.neg ? 'neg' : ''), n ? 'on' : ''].filter(Boolean).join(' ');
     const gate = x.need ? `<span class="tag">${F[x.need].name}が出るステージのみ</span>` : '';
     const uniq = x.unique ? `<span class="tag">1個まで</span>` : '';
     return `<div class="card ${cls}">
       <span class="ic">${x.ic}</span>
-      <span style="flex:1"><span class="t">${x.n}${gate}${uniq}</span>
-        <div class="d">${x.d}</div></span>
+      <span style="flex:1"><span class="t">${x.n}${gate}${uniq}
+        ${mine && LV(mine) > 1 ? `<span class="tag">Lv${LV(mine)}</span>` : ''}</span>
+        <div class="d">${mine ? descOf(mine) : x.d}</div></span>
       <span class="chk">${n > 1 ? '×' + n : '✓'}</span>
     </div>`;
   };
@@ -1716,7 +2148,7 @@ function openCatalog(back){
     ${byTag}
     ${misc.length ? `<h3 class="sec">その他</h3>` + misc.map(i => card(i,'item')).join('') : ''}
 
-    <h3 class="sec">たからもの（永続・${CONFIG.treasureSlots}枠）</h3>
+    <h3 class="sec">たからもの（永続・${CONFIG.treasureSlots}枠・最大Lv${CONFIG.treasureMaxLv}）</h3>
     ${TREASURES.map(t => card(t, 'tre')).join('')}
 
     <h3 class="sec">フルーツと固有効果</h3>
@@ -1763,10 +2195,13 @@ function openBreakdown(back){
      <td>${n === 3 ? '±0' : '+' + (n-3)*sb}</td></tr>`).join('');
 
   // 連鎖倍率
-  const step = CONFIG.baseChain + c.chainAdd;
-  const chainRows = [1,2,3,4,5].map(n =>
-    `<tr class="${n === 1 ? 'mute' : ''}"><td colspan="2">${n} 連鎖目</td>
-     <td>×${Math.round((1+(n-1)*step)*100)/100}</td></tr>`).join('');
+  const growth = CONFIG.chainMode === 'geometric'
+    ? CONFIG.chainGrowth + c.chainAdd : CONFIG.baseChain + c.chainAdd;
+  const chainRows = [1,2,3,4,5,6,7,8].map(n => {
+    const m = chainMultiplier(n, c);
+    return `<tr class="${n === 1 ? 'mute' : ''}"><td colspan="2">${n} 連鎖目</td>
+      <td style="${m >= 10 ? 'color:var(--lantern)' : ''}">×${m >= 100 ? Math.round(m) : Math.round(m*100)/100}</td></tr>`;
+  }).join('');
 
   // スコア倍率の出どころ
   const multRows = c.multSrc.length
@@ -1790,6 +2225,14 @@ function openBreakdown(back){
       （フルーツの基礎スコア合計 ＋ まとめ消しボーナス）× 連鎖倍率 × <b>スコア倍率</b>
     </div>
 
+    <h3 class="sec">農園の地力（永続）</h3>
+    <table class="tbl">
+      <tr><td class="ic">🌍</td><td>地力 Lv${soilLevel()}<br>
+        <span style="font-size:10px;color:var(--dim)">累計収穫 ${Math.round(S.lifetime).toLocaleString()}
+        ／ 次のLvまで ${soilNext().toLocaleString()}</span></td>
+        <td>基礎 +${CONFIG.soilGain * soilLevel()}</td></tr>
+    </table>
+
     <h3 class="sec">フルーツ 1個あたり ／ 効果率 ／ 出現率</h3>
     <table class="tbl">${fruitRows}</table>
     ${c.convert.length ? `<div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
@@ -1798,7 +2241,7 @@ function openBreakdown(back){
     <h3 class="sec">まとめ消しボーナス（1個超過につき +${sb}）</h3>
     <table class="tbl">${sizeRows}</table>
 
-    <h3 class="sec">連鎖倍率（1連鎖ごとに +${Math.round(step*100)/100}）</h3>
+    <h3 class="sec">連鎖倍率（1連鎖ごとに ${CONFIG.chainMode === 'geometric' ? '×' : '+'}${Math.round(growth*100)/100}）</h3>
     <table class="tbl">${chainRows}</table>
 
     <h3 class="sec">特殊フルーツ（そろえた数で誕生）</h3>
@@ -1812,7 +2255,7 @@ function openBreakdown(back){
         <td>半径 ${CONFIG.goldRadius + c.goldRange}
           <br><span style="font-size:10px;color:var(--dim);font-weight:400">×${Math.round(spMult('gold',c)*100)/100}</span></td></tr>
       <tr><td class="ic">🌑</td><td>黒：まれに盤面へ湧く ／ 盤面のフルーツを全消去
-        <br><span style="font-size:10px;color:var(--dim)">爆弾では壊せない</span></td>
+        <br><span style="font-size:10px;color:var(--dim)">${c.blackFuse ? '導火線あり：他の爆発でも起爆する' : '手でマッチさせたときだけ発動。他の効果では壊れない'}</span></td>
         <td>${pct(Math.min(1, CONFIG.blackChance * c.blackChanceMul))}
           <br><span style="font-size:10px;color:var(--dim);font-weight:400">×${Math.round(spMult('black',c)*100)/100}</span></td></tr>
       <tr><td class="ic">🌈</td><td>虹色：${rainbowNeed(c)}個 ／ ランダムなマスを同じ種類に塗ってから全消去</td>
@@ -1946,9 +2389,10 @@ document.addEventListener('click', e => {
   const [kind, i] = info.dataset.info.split(':');
   const it = kind === 'item' ? S.items[+i] : S.treasures[+i];
   if(!it) return;
-  sheet(`<h2>${it.ic} ${it.n}</h2>
-    <div class="sub">${kind === 'item' ? 'アイテム（このステージ限り）' : 'たからもの（永続）'}</div>
-    <div class="doc">${it.d}</div>
+  sheet(`<h2>${it.ic} ${it.n}${LV(it) > 1 ? ` <span class="tag">Lv${LV(it)}</span>` : ''}</h2>
+    <div class="sub">${kind === 'item' ? 'アイテム（このステージ限り）'
+      : `たからもの（永続）${it.dl ? ` ・ Lv${LV(it)} / ${CONFIG.treasureMaxLv}` : ''}`}</div>
+    <div class="doc">${descOf(it)}</div>
     ${it.track ? `<div class="doc" style="margin-top:8px;color:var(--lantern)">
       累積 <b>${cnt(it.track)}</b>${it.unit || ''} ／ ${it.every}${it.unit || ''}ごと
       ${it.reset ? `（あと ${it.every - cnt(it.track) % it.every}${it.unit || ''}で発動）`
@@ -1970,6 +2414,7 @@ $('btnList').onclick = () => openCatalog();
 $('btnOpt').onclick = () => {
   const draw = () => sheet(`
     <h2>設定</h2>
+    <div class="sub">バージョン <b style="color:var(--lantern)">v${VERSION}</b></div>
     <h3 class="sec">演出の速さ</h3>
     ${SPEEDS.map(sp => `
       <button class="card ${Math.abs(S.spd - sp.v) < 0.001 ? 'on' : ''}" data-spd="${sp.v}">
@@ -1982,6 +2427,8 @@ $('btnOpt').onclick = () => {
     </div>
     <h3 class="sec">開発用</h3>
     <div class="row"><button class="btn" data-act="stages">🧭 ステージ選択・デバッグ</button></div>
+    <div class="row"><button class="btn" data-act="save">💾 セーブ / ロード</button></div>
+    <div class="row"><button class="btn" data-act="log">📝 更新履歴</button></div>
 
     <h3 class="sec">ゲーム</h3>
     <div class="row"><button class="btn danger" data-act="reset">最初から始める</button></div>
@@ -1994,6 +2441,15 @@ $('btnOpt').onclick = () => {
       S.spd = parseFloat(b.dataset.spd); applySpeed(); draw();
     });
     el.querySelector('[data-act="stages"]').onclick = () => openStageSelect(draw);
+    el.querySelector('[data-act="save"]').onclick = () => openSaveLoad(draw);
+    el.querySelector('[data-act="log"]').onclick = () => sheet(`
+      <h2>更新履歴</h2>
+      <div class="sub">現在 v${VERSION}</div>
+      <table class="tbl">${CHANGELOG.map(([v,t]) =>
+        `<tr${v === VERSION ? ' class="tot"' : ''}><td class="ic">${v === VERSION ? '▶' : ''}</td>
+         <td>${t}</td><td>v${v}</td></tr>`).join('')}</table>
+      <div class="row" style="margin-top:14px"><button class="btn primary" data-act="c">戻る</button></div>
+    `, e2 => e2.querySelector('[data-act="c"]').onclick = draw, draw);
     el.querySelector('[data-act="reset"]').onclick = () => sheet(
       `<h2>最初から始める</h2>
        <div class="sub">ステージ・アイテム・たからものがすべてリセットされます。</div>
@@ -2019,6 +2475,9 @@ $('btnHelp').onclick = () => {
       制限ターン以内に目標の収穫量に届かせる。1回の入れ替えが1ターン。連鎖はすべて1ターンに含まれる。
       <h3 class="sec">収穫量の計算</h3>
       （フルーツの基礎スコア + 4個消し以降のボーナス）× 連鎖倍率 × <b>スコア倍率</b><br>
+      連鎖倍率は1連鎖進むごとに <b>×${CONFIG.chainGrowth}</b> ずつ掛かる。
+      深い連鎖ほど倍率が跳ね上がる（5連鎖で約×${Math.round(Math.pow(CONFIG.chainGrowth,4)*10)/10}、
+      8連鎖で約×${Math.round(Math.pow(CONFIG.chainGrowth,7))}）。<br>
       スコア倍率は掛け算で重なる。負の倍率同士を掛けると正に戻る。
       <h3 class="sec">フルーツ固有効果（基本 ${Math.round(CONFIG.effectChance*100)}%）</h3>
       <ul>${fx}</ul>
@@ -2031,22 +2490,36 @@ $('btnHelp').onclick = () => {
       <b>${CONFIG.rainbowThreshold}個</b> → <b>虹色</b>：盤面のランダムな${CONFIG.rainbowConvert}マスを
       自分と同じ種類に塗り替えたうえで、その種類を盤面から全消去。<br>
       爆発に巻き込まれた特殊フルーツは、一拍おいて誘爆する。<br>
-      <b>黒いフルーツ</b>はまれに盤面へ湧く。消すと盤面のフルーツが全て消える。ただし爆弾では壊せない。<br>
+      <b>黒いフルーツ</b>はまれに盤面へ湧く。消すと盤面のフルーツが全て消える。
+      ただし<b>自分の手でマッチさせたときしか反応しない</b>。
+      爆弾・爆風・虫食い・虹色など、他のどの効果でも破壊されず、誘爆もしない。
+      アイテム「導火線」を持つと、他の爆発でも起爆するようになる。<br>
       <b>金どうし・銀どうしは2個並ぶだけで消せる</b>（通常のフルーツは3個必要）。
       <h3 class="sec">にせもののフルーツ</h3>
       所持していると対象フルーツの出現率が2倍になり、
       <b>${CONFIG.fakeInterval}ターンごと</b>に盤面の${CONFIG.fakeCount}マスがそのフルーツに変わる。
       複数所持している場合、先に書き換えたマスは後のアイテムに上書きされない。
+      <h3 class="sec">農園の地力</h3>
+      ステージをまたいで累計収穫量が積み上がり、10倍になるごとに
+      <b>基礎スコアが永続的に +${CONFIG.soilGain}</b> される。進むほど土台が強くなる。
+      <h3 class="sec">アイテムを重ねる</h3>
+      すでに持っているアイテムをストアで取ると、枠を消費せず <b>Lv が上がり</b>、
+      効果がもう一段ぶん重なる（最大 Lv${CONFIG.itemMaxLv}）。倍率系は掛け算で重なるため複利になる。<br>
+      ストアの候補数は ${CONFIG.storeGrowth} ステージごとに1つ増える。
       <h3 class="sec">累積アイテム</h3>
       「◯個消すごとに」「◯回連鎖するごとに」といった条件で効果が伸びるアイテムがある。
       累積はステージ中ずっと保持され、ステージが変わるとリセットされる。
       アイテム枠の右上に現在の累積値または Lv が出る。
       <h3 class="sec">不思議な種</h3>
       フルーツを消すと ${Math.round(CONFIG.seedChance*100)}% で出現。1個でストアを引き直せる。
+      ラウンド開始時に必ず${CONFIG.roundSeeds}個配られるので、最初のストアは1回引き直せる。
       ステージクリア時に余った種は<b>爆弾</b>になり、次のステージへ持ち越される。爆弾はターンを消費せず3×3を消す。
       <h3 class="sec">アイテムとたからもの</h3>
       アイテムはそのステージ限り。ターン終了ごとに3択で1つ選ぶ。<br>
-      たからものは永続で、3つまで装備できる。
+      たからものは永続で、${CONFIG.treasureSlots}つまで装備できる。
+      枠が満杯のときに新しく見つけたら、<b>入れ替える</b>か、
+      <b>重ねて強化する</b>（持っているものの Lv を +1、最大 Lv${CONFIG.treasureMaxLv}）かを選べる。
+      Lv が上がると効果もその倍率で伸びる。
     </div>
     <div class="row" style="margin-top:14px">
       <button class="btn" data-act="list">📖 図鑑を見る</button>
