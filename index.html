@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>フルーツ農園ビルドパズル</title>
+<style>
+/* ============================================================
+   THEME : 夜の農園 / ランタンの灯り
+   ============================================================ */
+:root{
+  --ink:#0e1410;          /* 背景（夜の畑） */
+  --crate:#1a231b;        /* パネル（木箱） */
+  --crate2:#243026;
+  --line:#3a4b3c;
+  --lantern:#f5b942;      /* アクセント（ランタン） */
+  --cream:#f2ead8;
+  --dim:#93a493;
+  --bad:#e35b6d;
+  --good:#7fd48a;
+  --ts:40px;              /* タイルサイズ(JS更新) */
+  --sp:1.35;              /* 演出速度の倍率(JS更新・大きいほど遅い) */
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overscroll-behavior:none}
+body{
+  background:
+    radial-gradient(120% 60% at 50% -10%, #1d2a1e 0%, transparent 60%),
+    var(--ink);
+  color:var(--cream);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:15px;line-height:1.5;
+  -webkit-user-select:none;user-select:none;
+  touch-action:manipulation;
+}
+#app{
+  max-width:520px;margin:0 auto;min-height:100%;
+  display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 8px) 10px calc(env(safe-area-inset-bottom) + 8px);
+  gap:8px;
+}
+
+/* ---------- HUD ---------- */
+.hud{background:var(--crate);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.hud-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.stage-name{font-size:13px;letter-spacing:.08em;color:var(--lantern);font-weight:700}
+.stage-no{font-size:11px;color:var(--dim);letter-spacing:.14em}
+.goal{display:flex;align-items:baseline;gap:6px;margin-top:6px}
+.goal b{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.goal span{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.bar{height:7px;border-radius:99px;background:#0a0f0b;overflow:hidden;margin-top:6px;border:1px solid #2b382c}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5aa864,var(--lantern));transition:width .4s cubic-bezier(.2,.8,.2,1)}
+.bar.neg i{background:linear-gradient(90deg,#7a2532,var(--bad))}
+.pips{display:flex;gap:3px;margin-top:7px;align-items:center}
+.pips i{flex:1;height:4px;border-radius:99px;background:#2b382c}
+.pips i.used{background:#4a5f4c}
+.pips i.store{background:#5c4a1c}
+.pips i.store.used{background:#8a6d24}
+.pips i.now{background:var(--lantern);box-shadow:0 0 6px rgba(245,185,66,.6)}
+.hud-bot{display:flex;gap:6px;margin-top:9px}.chip{flex:1;background:var(--crate2);border-radius:10px;padding:6px 4px;text-align:center;border:1px solid #2f3d31}
+.chip small{display:block;font-size:9px;color:var(--dim);letter-spacing:.1em}
+.chip b{font-size:16px;font-variant-numeric:tabular-nums}
+.chip.tap{cursor:pointer}
+.chip.tap:active{transform:translateY(1px)}
+.chip.warn b{color:var(--bad)}
+
+/* ---------- 倍率メーター（シグネチャ） ---------- */
+#multMeter{
+  position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#2a1f0c,#1a231b);
+  border-color:#5a4718;
+}
+#multMeter b{color:var(--lantern);letter-spacing:-.03em}
+#multMeter.negative{background:linear-gradient(180deg,#2c0f16,#1a231b);border-color:#6b2530}
+#multMeter.negative b{color:var(--bad)}
+#multMeter.negative::after{
+  content:"反 転";position:absolute;inset:auto 0 -2px 0;font-size:8px;letter-spacing:.4em;color:var(--bad);opacity:.7
+}
+
+/* ---------- 盤面 ---------- */
+#boardWrap{display:flex;justify-content:center;align-items:center;flex:0 0 auto}
+#board{position:relative;border-radius:var(--r);background:#0a0f0b;border:1px solid var(--line);
+  box-shadow:inset 0 0 40px #000;overflow:hidden}
+.tile{position:absolute;width:var(--ts);height:var(--ts);display:flex;align-items:center;justify-content:center;
+  transition:transform calc(.22s * var(--sp)) cubic-bezier(.3,.9,.4,1);will-change:transform}
+.tile .face{
+  width:calc(var(--ts) - 6px);height:calc(var(--ts) - 6px);border-radius:var(--fr,11px);
+  display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--ts) * .52);line-height:1;
+  background:var(--fc);box-shadow:inset 0 -3px 0 rgba(0,0,0,.28), inset 0 2px 0 rgba(255,255,255,.22);
+  transition:transform .12s, box-shadow .12s;
+}
+.tile .face.silver{
+  background:linear-gradient(150deg,#ffffff 0%,#cfd8dd 38%,#8e9aa2 62%,#eef3f6 100%);
+  box-shadow:0 0 0 2px #eef3f6, 0 0 9px rgba(207,216,221,.6),
+             inset 0 -3px 0 rgba(60,70,78,.32), inset 0 2px 0 rgba(255,255,255,.55);
+}
+.tile .face.gold{
+  background:linear-gradient(150deg,#fff3c4 0%,#f5c542 38%,#c98a12 62%,#ffe9a8 100%);
+  box-shadow:0 0 0 2px #ffe9a8, 0 0 12px rgba(245,197,66,.75),
+             inset 0 -3px 0 rgba(120,80,0,.35), inset 0 2px 0 rgba(255,255,255,.5);
+  animation:shine calc(2.4s * var(--sp)) linear infinite;
+}
+@keyframes shine{0%,100%{filter:brightness(1)}50%{filter:brightness(1.22)}}
+.tile .face.charge{animation:charge calc(.16s * var(--sp)) ease-in-out infinite alternate;
+  box-shadow:0 0 0 3px #fff6d0, 0 0 22px rgba(255,223,107,.95)}
+@keyframes charge{from{transform:scale(1)}to{transform:scale(1.16)}}
+.tile.sel .face{transform:scale(.86);box-shadow:0 0 0 3px var(--lantern), inset 0 -3px 0 rgba(0,0,0,.28)}
+.tile.pop{transition:transform calc(.2s * var(--sp)), opacity calc(.2s * var(--sp))}
+.tile.pop .face{animation:pop calc(.26s * var(--sp)) forwards}
+@keyframes pop{60%{transform:scale(1.25)}100%{transform:scale(0);opacity:0}}
+.tile.bad .face{filter:saturate(.3)}
+#board.shake{animation:shk .22s}
+@keyframes shk{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+#board.bombing{box-shadow:inset 0 0 0 2px var(--bad), inset 0 0 40px #300}
+
+/* 浮き上がるスコア */
+.float{position:absolute;pointer-events:none;font-weight:800;font-size:15px;
+  text-shadow:0 2px 6px #000,0 0 3px #000;animation:fl calc(1s * var(--sp)) ease-out forwards;z-index:5;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.float.mini{font-size:calc(var(--ts) * .34);color:#fff;animation:flm calc(.9s * var(--sp)) ease-out forwards}
+.float.grp{font-size:calc(var(--ts) * .46);letter-spacing:-.02em;animation:flg calc(1.1s * var(--sp)) ease-out forwards;z-index:6}
+.float.fx{font-size:calc(var(--ts) * .24);font-weight:700;letter-spacing:.02em}
+@keyframes flm{0%{opacity:0;transform:translateY(5px) scale(.55)}
+  22%{opacity:1;transform:translateY(0) scale(1)}
+  100%{opacity:0;transform:translateY(-22px) scale(1)}}
+@keyframes flg{0%{opacity:0;transform:scale(.6)}
+  18%{opacity:1;transform:scale(1.12)}30%{transform:scale(1)}
+  100%{opacity:0;transform:translateY(-30px) scale(1)}}
+@keyframes fl{0%{opacity:0;transform:translateY(6px) scale(.8)}20%{opacity:1;transform:translateY(0) scale(1)}
+  100%{opacity:0;transform:translateY(-38px) scale(1)}}
+#announce{position:absolute;left:0;right:0;top:44%;text-align:center;font-size:30px;font-weight:800;
+  letter-spacing:.02em;pointer-events:none;opacity:0;z-index:7;text-shadow:0 3px 16px #000,0 0 6px #000}
+#announce.show{animation:anc calc(1.7s * var(--sp)) cubic-bezier(.2,.9,.3,1) forwards}
+@keyframes anc{0%{opacity:0;transform:scale(.72)}
+  14%{opacity:1;transform:scale(1.06)}26%{transform:scale(1)}
+  72%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.04)}}
+#turnScore{position:absolute;left:0;right:0;top:38%;text-align:center;font-size:38px;font-weight:800;
+  pointer-events:none;opacity:0;z-index:6;text-shadow:0 3px 14px #000;font-variant-numeric:tabular-nums}
+#turnScore.show{animation:ts calc(1.2s * var(--sp)) cubic-bezier(.2,.9,.3,1) forwards}
+@keyframes ts{0%{opacity:0;transform:scale(.5)}25%{opacity:1;transform:scale(1.08)}70%{opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(1) translateY(-24px)}}
+
+/* ---------- トレイ ---------- */
+.tray{background:var(--crate);border:1px solid var(--line);border-radius:var(--r);padding:8px}
+.tray-h{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--dim);
+  letter-spacing:.16em;margin-bottom:6px}
+.slots{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.slot{flex:0 0 auto;width:52px;height:52px;border-radius:11px;background:var(--crate2);
+  border:1px dashed #33422f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.slot.filled{border:1px solid var(--line);border-style:solid;background:linear-gradient(180deg,#2b382c,#212c22)}
+.slot.filled.neg{border-color:#6b2530;background:linear-gradient(180deg,#2f1a20,#241318)}
+.slot.filled.tre{border-color:#6a5520;background:linear-gradient(180deg,#332a12,#241f10)}
+.slot .ic{font-size:21px;line-height:1}
+.slot .nm{font-size:7.5px;color:var(--dim);text-align:center;line-height:1.1;padding:0 2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.slot.locked{opacity:.3}
+
+/* ---------- ボタン ---------- */
+.btn{appearance:none;border:1px solid var(--line);background:var(--crate2);color:var(--cream);
+  border-radius:11px;padding:11px 14px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;
+  letter-spacing:.04em}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:linear-gradient(180deg,#f5b942,#d3921f);color:#241a05;border-color:#f5b942}
+.btn.ghost{background:transparent;color:var(--dim)}
+.btn.danger{background:linear-gradient(180deg,#e35b6d,#b03a4b);border-color:#e35b6d;color:#2a0d12}
+.btn[disabled]{opacity:.35;pointer-events:none}
+.footbar{display:flex;gap:6px}
+.footbar .btn{flex:1;padding:9px 6px;font-size:12px}
+.footbar .btn.icon{flex:0 0 42px;font-size:16px;padding:9px 0}
+.card.on{border-color:var(--lantern);background:linear-gradient(180deg,#33290f,#242c22)}
+.card .chk{margin-left:auto;color:var(--lantern);font-size:16px;opacity:0}
+.card.on .chk{opacity:1}
+
+/* ---------- モーダル ---------- */
+#modal{position:fixed;inset:0;background:rgba(4,8,5,.82);backdrop-filter:blur(6px);z-index:50;
+  display:none;align-items:flex-end;justify-content:center;padding:12px}
+#modal.on{display:flex}
+.sheet{width:100%;max-width:500px;max-height:92vh;overflow-y:auto;background:var(--crate);
+  border:1px solid var(--line);border-radius:20px;padding:16px;position:relative;
+  padding-bottom:calc(16px + env(safe-area-inset-bottom));animation:up .28s cubic-bezier(.2,.9,.3,1)}
+@keyframes up{from{transform:translateY(30px);opacity:0}}
+.sheetx{position:sticky;float:right;top:0;z-index:9;width:34px;height:34px;margin:-4px -4px 0 0;
+  border-radius:50%;border:1px solid var(--line);background:var(--crate2);color:var(--dim);
+  font-size:15px;line-height:1;cursor:pointer;font-family:inherit;padding:0}
+.sheetx:active{color:var(--cream);border-color:var(--lantern);transform:scale(.94)}
+.sheet h2{margin:0 0 2px;font-size:19px;letter-spacing:.04em;padding-right:34px}
+.sheet .sub{color:var(--dim);font-size:12px;margin-bottom:12px}
+.card{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:11px;border-radius:13px;
+  background:var(--crate2);border:1px solid var(--line);margin-bottom:8px;color:var(--cream);font-family:inherit;cursor:pointer}
+.card:active{border-color:var(--lantern)}
+.card.neg{border-color:#5d222c;background:linear-gradient(180deg,#2c161b,#221319)}
+.card.tre{border-color:#6a5520;background:linear-gradient(180deg,#332a12,#241f10)}
+.card .ic{font-size:27px;flex:0 0 auto;width:36px;text-align:center}
+.card .t{font-size:14px;font-weight:700}
+.card .d{font-size:11.5px;color:var(--dim);line-height:1.45}
+.card .tag{display:inline-block;font-size:9px;letter-spacing:.1em;padding:1px 6px;border-radius:99px;
+  border:1px solid var(--line);color:var(--dim);margin-left:6px;vertical-align:1px}
+.row{display:flex;gap:8px;margin-top:4px}
+.row .btn{flex:1}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl td{padding:6px 3px;border-bottom:1px solid #2b382c;color:#c8d3c4;vertical-align:middle}
+.tbl td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--cream);white-space:nowrap}
+.tbl td.ic{width:26px;font-size:17px;text-align:center;padding-right:6px}
+.tbl .mute td{color:var(--dim)}
+.tbl .neg td:last-child{color:var(--bad)}
+.tbl .tot td{border-bottom:none;border-top:1px solid var(--line);padding-top:9px}
+.tbl .tot td:last-child{color:var(--lantern);font-size:17px}
+.tbl .tot.neg td:last-child{color:var(--bad)}
+h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;font-weight:700}
+.doc{font-size:12.5px;color:#c8d3c4;line-height:1.7}
+.doc b{color:var(--lantern)}
+.doc ul{padding-left:1.1em;margin:6px 0}
+#log{font-family:ui-monospace,monospace;font-size:10px;color:#d88;white-space:pre-wrap;
+  max-height:120px;overflow:auto;background:#0a0f0b;border-radius:8px;padding:6px;margin-top:8px;display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));
+  background:var(--crate2);border:1px solid var(--lantern);color:var(--cream);padding:9px 16px;border-radius:99px;
+  font-size:13px;z-index:80;animation:tt 1.8s forwards;pointer-events:none}
+@keyframes tt{0%{opacity:0;transform:translate(-50%,10px)}12%{opacity:1;transform:translate(-50%,0)}
+  80%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud">
+    <div class="hud-top">
+      <div class="stage-name" id="stName">—</div>
+      <div class="stage-no" id="stNo">STAGE 1</div>
+    </div>
+    <div class="goal"><b id="harvest">0</b><span id="target">/ 0 収穫</span></div>
+    <div class="bar" id="bar"><i></i></div>
+    <div class="pips" id="pips"></div>
+    <div class="hud-bot">
+      <div class="chip"><small>ターン</small><b id="turns">0</b></div>
+      <div class="chip tap" id="multMeter"><small>スコア倍率 ▸</small><b id="mult">×1</b></div>
+      <div class="chip"><small>不思議な種</small><b id="seeds">0</b></div>
+      <div class="chip"><small>爆弾</small><b id="bombs">0</b></div>
+    </div>
+  </div>
+
+  <div id="boardWrap"><div id="board"><div id="turnScore"></div><div id="announce"></div></div></div>
+
+  <div class="tray">
+    <div class="tray-h"><span>ITEMS</span><span id="slotCount">0 / 5</span></div>
+    <div class="slots" id="itemSlots"></div>
+  </div>
+
+  <div class="tray">
+    <div class="tray-h"><span>TREASURES</span><span>永続</span></div>
+    <div class="slots" id="treSlots"></div>
+  </div>
+
+  <div class="footbar">
+    <button class="btn" id="btnBomb">💣 爆弾を使う</button>
+    <button class="btn ghost" id="btnList">📖 図鑑</button>
+    <button class="btn ghost" id="btnHelp">遊び方</button>
+    <button class="btn ghost icon" id="btnOpt">⚙</button>
+  </div>
+</div>
+
+<div id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   フルーツ農園ビルドパズル ／ プロトタイプ
+   仕様書 §15 の方針どおり、数値・効果はすべて下記データ定義に集約している。
+   バランス調整はこのブロックだけを触れば完結する。
+   ========================================================================= */
+
+const CONFIG = {
+  baseChain:      0.5,   // 連鎖1つごとの倍率上昇（連鎖2 = ×1.5）
+  sizeBonus:      15,    // 4個消し以降、1個あたりの追加スコア
+  effectChance:   0.12,  // フルーツ固有効果の基本発生率
+  seedChance:     0.05,  // 不思議な種の出現率（仕様書 §9.1）
+  rerollCost:     1,     // リロールの種消費数
+  startSlots:     5,     // 初期アイテム枠（§6.2）
+  storeInterval:  3,     // 何ターンごとにストアを開くか
+  maxSlots:       10,    // 最大アイテム枠
+  slotGain:       1,     // ステージクリアごとの枠増加
+  treasureSlots:  3,     // たからもの枠（§10.3）
+  storeSize:      3,     // ストア提示数（§6.3）
+  multFloor:      0.05,  // 倍率0の破壊力を抑えるガード（§8.1）
+  bombRadius:     1,     // 爆弾の効果半径（1 = 3×3）
+  goldThreshold:  5,     // 黄金のフルーツが生まれる同時消し数
+  goldRadius:     2,     // 黄金のフルーツの爆発半径（丸く抉る）
+  goldMult:       2,     // 黄金が消したフルーツのスコア倍率
+  silverThreshold:4,     // 銀のフルーツが生まれる同時消し数
+  silverRadius:   1,     // 銀のフルーツの爆発半径（3×3）
+  silverMult:     1.5,   // 銀が消したフルーツのスコア倍率
+  warnTurns:      3,     // 残りこのターン数から警告を出す
+  storeChoices:   3
+};
+
+/* ---------------- 演出速度 ---------------- */
+const SPEEDS = [
+  {id:'slowest', n:'じっくり', d:'数字を1つずつ読める',       v:1.9},
+  {id:'slow',    n:'ゆっくり', d:'既定。落ち着いて追える',    v:1.35},
+  {id:'normal',  n:'ふつう',   d:'テンポ重視',               v:1.0},
+  {id:'fast',    n:'はやい',   d:'周回向け。数字は流れる',    v:0.6}
+];
+const DEFAULT_SPEED = 'slow';
+
+/* ---------------- フルーツ（§4） ---------------- */
+/* color は色相を離して配置（赤5° / 橙32° / 黄50° / 緑140° / 青240° / 桃320°）
+   shape は色に頼らず見分けるためのシルエット。色覚特性の差にも効く。 */
+const FRUITS = [
+  { id:'apple',  name:'りんご',   icon:'🍎', color:'#d6392f', shape:'50%', base:10,
+    fx:'力の実',   fxDesc:'追加スコア +45' },
+  { id:'orange', name:'オレンジ', icon:'🍊', color:'#f07c18', shape:'26%', base:10,
+    fx:'種袋',     fxDesc:'不思議な種 +1' },
+  { id:'banana', name:'バナナ',   icon:'🍌', color:'#edd23f', shape:'52% 14% 52% 14%', base:10,
+    fx:'皮すべり', fxDesc:'十字方向を追加消去' },
+  { id:'grape',  name:'ぶどう',   icon:'🍇', color:'#4a63c9', shape:'12%', base:10,
+    fx:'醸造',     fxDesc:'このターンの倍率 +0.2' },
+  { id:'straw',  name:'いちご',   icon:'🍓', color:'#e0489f', shape:'48% 48% 44% 44% / 42% 42% 62% 62%', base:10,
+    fx:'甘み',     fxDesc:'そのグループのスコア ×1.6' },
+  { id:'melon',  name:'メロン',   icon:'🍈', color:'#3f9e5c', shape:'32% 68% 32% 68% / 68% 32% 68% 32%', base:12,
+    fx:'重量',     fxDesc:'基礎スコア分をもう一度加算' }
+];
+const F = {}; FRUITS.forEach(f => F[f.id] = f);
+
+/* ---------------- アイテム（§7） ----------------
+   apply(c, s) : c = 集計コンテキスト / s = ゲーム状態
+   late:true   : 他アイテムの集計結果を参照する（シナジー系）      */
+const ITEMS = [
+  // --- スコア系 ---
+  {id:'fert',  n:'肥料袋',       ic:'🧺', tag:'スコア', d:'基礎スコア +5',
+    apply:c=>c.baseAdd+=5},
+  {id:'rake',  n:'黄金の熊手',   ic:'🪝', tag:'スコア', d:'基礎スコア +14',
+    apply:c=>c.baseAdd+=14},
+  {id:'chainm',n:'連鎖の記憶',   ic:'🌀', tag:'スコア', d:'連鎖倍率の上昇量 +0.3',
+    apply:c=>c.chainAdd+=0.3},
+  {id:'longr', n:'長蛇の列',     ic:'📏', tag:'スコア', d:'4個以上消しのボーナス +25',
+    apply:c=>c.sizeAdd+=25},
+  {id:'sunfoc',n:'太陽光集束',   ic:'🔆', tag:'スコア', d:'連鎖倍率 +0.5／基礎スコア -6',
+    apply:c=>{c.chainAdd+=0.5;c.baseAdd-=6}},
+  {id:'ledger',n:'収穫の証',     ic:'📜', tag:'シナジー', d:'所持アイテム1個につき基礎スコア +3',
+    apply:(c,s)=>c.baseAdd+=3*s.items.length},
+  {id:'stack', n:'積み重ね',     ic:'🗄️', tag:'シナジー', d:'このステージで消した50個ごとに基礎スコア +3',
+    apply:(c,s)=>c.baseAdd+=3*Math.floor(s.stageCleared/50)},
+
+  // --- 倍率系（正） ---
+  {id:'x15',   n:'収穫倍率',     ic:'✳️', tag:'倍率', d:'スコア倍率 ×1.5',
+    apply:c=>c.mults.push(1.5)},
+  {id:'x2',    n:'大収穫祭',     ic:'🎊', tag:'倍率', d:'スコア倍率 ×2',
+    apply:c=>c.mults.push(2)},
+
+  // --- 倍率系（負・§8）単体では致命的だが、偶数個そろえると爆発する ---
+  {id:'moon',  n:'逆さの月',     ic:'🌘', tag:'負倍率', neg:true, d:'スコア倍率 ×-2',
+    apply:c=>{c.mults.push(-2);c.negCount++}},
+  {id:'scale', n:'呪われた天秤', ic:'⚖️', tag:'負倍率', neg:true, d:'スコア倍率 ×-3',
+    apply:c=>{c.mults.push(-3);c.negCount++}},
+  {id:'mirror',n:'鏡の農具',     ic:'🪞', tag:'負倍率', neg:true, d:'スコア倍率 ×-4',
+    apply:c=>{c.mults.push(-4);c.negCount++}},
+  {id:'invert',n:'反転の実',     ic:'🔃', tag:'シナジー', d:'最終倍率が負なら ×-1.5 して正に戻す',
+    apply:c=>c.invert=true, late:true},
+  {id:'balance',n:'均衡の秤',    ic:'☯️', tag:'シナジー', d:'負倍率アイテム2個以上で ×2.5',
+    apply:c=>{ if(c.negCount>=2) c.mults.push(2.5); }, late:true},
+  {id:'abyss', n:'奈落の実り',   ic:'🕳️', tag:'シナジー', d:'負倍率アイテム1個につき基礎スコア +15',
+    apply:c=>c.baseAdd+=15*c.negCount, late:true},
+
+  // --- 確率系（§7.2） ---
+  {id:'clover',n:'四つ葉',       ic:'🍀', tag:'確率', d:'全フルーツの固有効果率 +10%',
+    apply:c=>c.chanceAdd+=0.10},
+  {id:'gamble',n:'賭博師の帽子', ic:'🎩', tag:'確率', d:'固有効果率 +25%／基礎スコア -4',
+    apply:c=>{c.chanceAdd+=0.25;c.baseAdd-=4}},
+  {id:'seedbag',n:'幸運の種袋',  ic:'👝', tag:'確率', d:'種の出現率 +5%',
+    apply:c=>c.seedAdd+=0.05},
+  {id:'pray',  n:'豊穣の祈り',   ic:'🙏', tag:'確率', d:'種の出現率 ×2',
+    apply:c=>c.seedMul*=2},
+
+  // --- フルーツ固有効果系（§7.3） ---
+  {id:'apolish',n:'りんご磨き',  ic:'🍎', tag:'果実', d:'りんごのスコア +25',
+    apply:c=>c.fruitScore.apple=(c.fruitScore.apple||0)+25},
+  {id:'avow',  n:'りんごの誓い', ic:'❤️', tag:'果実', d:'りんごの効果率 +20%',
+    apply:c=>c.fruitChance.apple=(c.fruitChance.apple||0)+0.20},
+  {id:'squeez',n:'オレンジ絞り器',ic:'🍹',tag:'果実', d:'オレンジの効果率 +18%',
+    apply:c=>c.fruitChance.orange=(c.fruitChance.orange||0)+0.18},
+  {id:'peel',  n:'バナナの皮',   ic:'🍌', tag:'果実', d:'バナナの追加消去範囲 +1',
+    apply:c=>c.bananaRange+=1},
+  {id:'barrel',n:'ぶどう酒樽',   ic:'🛢️', tag:'果実', d:'ぶどうの倍率上昇量 +0.25',
+    apply:c=>c.grapeBonus+=0.25},
+  {id:'jam',   n:'いちごジャム', ic:'🍓', tag:'果実', d:'いちごのスコア +12／効果率 +12%',
+    apply:c=>{c.fruitScore.straw=(c.fruitScore.straw||0)+12;c.fruitChance.straw=(c.fruitChance.straw||0)+0.12}},
+  {id:'crate', n:'メロン用木箱', ic:'📦', tag:'果実', need:'melon', d:'メロンのスコア +30',
+    apply:c=>c.fruitScore.melon=(c.fruitScore.melon||0)+30},
+  {id:'map',   n:'果樹園の地図', ic:'🗺️', tag:'特殊', unique:true, d:'盤面のフルーツ種類 -1（揃いやすくなる）',
+    apply:c=>c.typeCut+=1},
+  {id:'goldmold',n:'黄金の型',   ic:'🥇', tag:'特殊', unique:true, d:'4個そろえるだけで黄金のフルーツが生まれる',
+    apply:c=>c.goldCut+=1},
+  {id:'goldvein',n:'金鉱脈',     ic:'⛏️', tag:'特殊', d:'黄金のフルーツの爆発範囲 +1',
+    apply:c=>c.goldRange+=1},
+  {id:'alchemy', n:'錬金術の書', ic:'📕', tag:'特殊', d:'黄金の爆発の倍率 +1.5（×2 → ×3.5）',
+    apply:c=>c.goldMultAdd+=1.5},
+  {id:'silverhammer',n:'銀細工の鎚', ic:'🔨', tag:'特殊', d:'銀のフルーツの爆発範囲 +1（3×3 → 21マス）',
+    apply:c=>c.silverRange+=1},
+  {id:'silverscale', n:'白銀の天秤', ic:'🥈', tag:'特殊', d:'銀の爆発の倍率 +1（×1.5 → ×2.5）',
+    apply:c=>c.silverMultAdd+=1},
+
+  // --- 出現率系（にせものシリーズは ITEMS 定義の直後に全フルーツぶん自動生成） ---
+  {id:'monopoly',  n:'独占栽培',   ic:'🚜', tag:'出現率', d:'基礎スコアが最も高いフルーツの出現率 ×2',
+    apply:c=>c.topSpawn=(c.topSpawn||1)*2},
+
+  // --- 条件・シナジー系（§7.4） ---
+  {id:'igniter',n:'発火装置',    ic:'🔥', tag:'シナジー', d:'固有効果が発動するたび、このターンの倍率 +0.12',
+    apply:c=>c.perProc+=0.12},
+  {id:'chainbox',n:'連鎖装置',   ic:'⚙️', tag:'シナジー', d:'連鎖3以上に到達したターンの倍率 +0.6',
+    apply:c=>c.chain3+=0.6},
+  {id:'seedeat',n:'種喰らい',    ic:'🐛', tag:'シナジー', d:'種を1個得るたびスコア +40',
+    apply:c=>c.seedScore+=40}
+];
+
+/* にせものシリーズ：全フルーツぶんを自動生成する。
+   出現率は一律 ×2（たからもの「品種台帳」で倍率が上がる）。
+   need により、そのフルーツが登場しないステージではストアに並ばない。 */
+FRUITS.forEach(f => ITEMS.push({
+  id:'fake_' + f.id,
+  n:'にせもの' + f.name,
+  ic:f.icon,
+  tag:'出現率',
+  need:f.id,
+  d:`${f.name}の出現率 ×2`,
+  apply:c => { c.spawnMul[f.id] = (c.spawnMul[f.id] || 1) * (2 + c.fakeBonus); }
+}));
+
+/* ---------------- たからもの（§10） ---------------- */
+const TREASURES = [
+  {id:'urn',   n:'豊穣の壺',     ic:'🏺', d:'種の出現率 +3%',            apply:c=>c.seedAdd+=0.03},
+  {id:'card',  n:'商人の名刺',   ic:'💳', d:'ストアの候補が4個になる',    apply:c=>c.storeSize+=1},
+  {id:'hoe',   n:'古びた鍬',     ic:'⛏️', d:'基礎スコア +4',              apply:c=>c.baseAdd+=4},
+  {id:'sun',   n:'太陽の欠片',   ic:'☀️', d:'全フルーツの効果率 +8%',     apply:c=>c.chanceAdd+=0.08},
+  {id:'mirrorm',n:'月光の鏡',    ic:'🌙', d:'常にスコア倍率 ×1.2',        apply:c=>c.mults.push(1.2)},
+  {id:'diary', n:'農夫の日誌',   ic:'📓', d:'アイテム枠 +1',              apply:c=>c.slotAdd+=1},
+  {id:'blue',  n:'爆薬の設計図', ic:'📐', d:'爆弾の効果範囲 +1',          apply:c=>c.bombAdd+=1},
+  {id:'bank',  n:'種銀行',       ic:'🏦', d:'ステージ開始時に種 +2',      apply:c=>c.startSeeds+=2},
+  {id:'cal',   n:'収穫暦',       ic:'📅', d:'制限ターン +3',              apply:c=>c.turnAdd+=3},
+  {id:'spark', n:'種火',         ic:'🕯️', d:'ステージ開始時にアイテム1個獲得', apply:c=>c.startItems+=1},
+  {id:'crown', n:'黄金の王冠',   ic:'👑', d:'黄金の爆発の倍率 +1',        apply:c=>c.goldMultAdd+=1},
+  {id:'catalog',n:'品種台帳',    ic:'📔', d:'「にせもの」系の出現率倍率 +0.5（×2 → ×2.5）', apply:c=>c.fakeBonus+=0.5}
+];
+
+/* ---------------- ステージ（§5） ---------------- */
+const STAGES = [
+  {name:'村はずれの空き地', w:8, h:8,  turns:12, target:1200,  fruits:5},
+  {name:'朝もやの果樹園',   w:8, h:8,  turns:12, target:2800,  fruits:5},
+  {name:'石垣のいちご畑',   w:7, h:7,  turns:11, target:5200,  fruits:5},
+  {name:'風車のある丘',     w:8, h:8,  turns:12, target:9500,  fruits:6},
+  {name:'王立温室',         w:9, h:9,  turns:13, target:18000, fruits:6},
+  {name:'痩せた岩の段々畑', w:6, h:6,  turns:10, target:32000, fruits:5},
+  {name:'霧の大農園',       w:8, h:8,  turns:12, target:60000, fruits:6},
+  {name:'国営中央農場',     w:10,h:10, turns:14, target:120000,fruits:6}
+];
+function stageData(i){
+  if(i < STAGES.length) return {...STAGES[i]};
+  const last = STAGES[STAGES.length-1], over = i - STAGES.length + 1;
+  return {...last, name:`開拓地 ${over}`, target: Math.round(last.target * Math.pow(1.8, over))};
+}
+
+/* ============================================================================
+   状態
+   ========================================================================= */
+const S = {
+  stage:0, turns:0, turnsMax:0, harvest:0, target:0,
+  seeds:0, bombs:0, items:[], treasures:[], slots:CONFIG.startSlots,
+  w:8, h:8, grid:[], fruitIds:[], stageCleared:0,
+  busy:false, sel:null, bombMode:false, uid:0, store:null,
+  spd:(SPEEDS.find(s => s.id === DEFAULT_SPEED) || SPEEDS[1]).v
+};
+const T = ms => Math.round(ms * S.spd);
+function applySpeed(){ document.documentElement.style.setProperty('--sp', S.spd); }
+const $ = id => document.getElementById(id);
+const board = $('board'), tileEls = new Map();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rnd = n => Math.floor(Math.random()*n);
+const pick = a => a[rnd(a.length)];
+
+/* ---------------- 効果集計（ビルドの心臓部） ---------------- */
+function ctx(){
+  const c = {
+    baseAdd:0, fruitScore:{}, fruitChance:{}, chanceAdd:0,
+    seedAdd:0, seedMul:1, seedScore:0,
+    chainAdd:0, sizeAdd:0, mults:[], negCount:0, invert:false,
+    bananaRange:0, grapeBonus:0, perProc:0, chain3:0, typeCut:0,
+    spawnMul:{}, convert:[], topSpawn:0, convAdd:0, fakeBonus:0,
+    goldCut:0, goldRange:0, goldMultAdd:0,
+    silverCut:0, silverRange:0, silverMultAdd:0,
+    storeSize:CONFIG.storeSize, slotAdd:0, bombAdd:0,
+    startSeeds:0, startItems:0, turnAdd:0
+  };
+  const all = [...S.treasures, ...S.items];
+  // どのアイテムがどの倍率を出しているか記録できるよう push を差し替える
+  let cur = null;
+  c.multSrc = [];
+  c.mults.push = function(v){
+    Array.prototype.push.call(this, v);
+    c.multSrc.push({item:cur, v});
+    return this.length;
+  };
+  const run = x => { cur = x; x.apply(c, S); };
+  all.filter(x => !x.late).forEach(run);
+  all.filter(x =>  x.late).forEach(run);
+  return c;
+}
+function staticMult(c){
+  let m = c.mults.reduce((a,b) => a*b, 1);
+  if(c.invert && m < 0) m *= -1.5;
+  if(Math.abs(m) < CONFIG.multFloor) m = m < 0 ? -CONFIG.multFloor : CONFIG.multFloor;
+  return m;
+}
+const fmtMult = m => '×' + (Math.round(m*100)/100);
+
+/* ============================================================================
+   盤面
+   ========================================================================= */
+/* 出現率テーブル。基本の重みは全フルーツ1で、アイテムが重みと「変換」を足す。
+   変換は抽選後の置き換え（例：出たフルーツの20%をバナナに差し替える）。 */
+function spawnTable(){
+  const c = ctx();
+  const w = S.fruitIds.map(id => Math.max(0.01, c.spawnMul[id] || 1));
+  if(c.topSpawn){
+    let best = 0, bv = -Infinity;
+    S.fruitIds.forEach((id,i) => {
+      const v = F[id].base + c.baseAdd + (c.fruitScore[id] || 0);
+      if(v > bv){ bv = v; best = i; }
+    });
+    w[best] *= c.topSpawn;
+  }
+  const conv = c.convert
+    .filter(cv => S.fruitIds.includes(cv.to))
+    .map(cv => ({to:cv.to, p:Math.min(0.9, cv.p + c.convAdd)}));
+  return {w, total:w.reduce((a,b) => a+b, 0), conv};
+}
+function refreshSpawn(){ S.spawn = spawnTable(); }
+
+/* 実際に盤面へ出る割合（変換後）。内訳画面で使う。 */
+function spawnRates(){
+  const t = spawnTable(), eff = {};
+  S.fruitIds.forEach(id => eff[id] = 0);
+  S.fruitIds.forEach((id,i) => {
+    let remain = t.w[i] / t.total;
+    for(const cv of t.conv){
+      if(cv.to === id) continue;
+      eff[cv.to] += remain * cv.p;
+      remain *= (1 - cv.p);
+    }
+    eff[id] += remain;
+  });
+  return eff;
+}
+
+function newCell(){
+  const t = S.spawn || (S.spawn = spawnTable());
+  let r = Math.random() * t.total, f = S.fruitIds[S.fruitIds.length-1];
+  for(let i=0;i<S.fruitIds.length;i++){ r -= t.w[i]; if(r <= 0){ f = S.fruitIds[i]; break; } }
+  for(const cv of t.conv){
+    if(cv.to === f) continue;
+    if(Math.random() < cv.p){ f = cv.to; break; }
+  }
+  return {id:++S.uid, f};
+}
+function at(x,y){ return (x<0||y<0||x>=S.w||y>=S.h) ? null : S.grid[y*S.w+x]; }
+
+function buildBoard(){
+  refreshSpawn();
+  do{
+    S.grid = [];
+    for(let y=0;y<S.h;y++) for(let x=0;x<S.w;x++){
+      let cell, guard = 0;
+      do{ cell = newCell(); guard++; }
+      while(guard < 40 && makesLine(x,y,cell.f));
+      S.grid[y*S.w+x] = cell;
+    }
+  } while(findGroups().length || !hasMove());
+  function makesLine(x,y,f){
+    const g = S.grid;
+    const l1 = x>1 && g[y*S.w+x-1] && g[y*S.w+x-1].f===f && g[y*S.w+x-2] && g[y*S.w+x-2].f===f;
+    const l2 = y>1 && g[(y-1)*S.w+x] && g[(y-1)*S.w+x].f===f && g[(y-2)*S.w+x] && g[(y-2)*S.w+x].f===f;
+    return l1 || l2;
+  }
+}
+
+function findGroups(){
+  const {w,h,grid} = S, mark = new Uint8Array(w*h);
+  for(let y=0;y<h;y++){
+    let run = 1;
+    for(let x=1;x<=w;x++){
+      const a = x<w ? grid[y*w+x] : null, b = grid[y*w+x-1];
+      if(a && b && a.f===b.f) run++;
+      else { if(run>=3) for(let k=x-run;k<x;k++) mark[y*w+k] = 1; run = 1; }
+    }
+  }
+  for(let x=0;x<w;x++){
+    let run = 1;
+    for(let y=1;y<=h;y++){
+      const a = y<h ? grid[y*w+x] : null, b = grid[(y-1)*w+x];
+      if(a && b && a.f===b.f) run++;
+      else { if(run>=3) for(let k=y-run;k<y;k++) mark[k*w+x] = 1; run = 1; }
+    }
+  }
+  const seen = new Uint8Array(w*h), out = [];
+  for(let i=0;i<w*h;i++){
+    if(!mark[i] || seen[i]) continue;
+    const st = [i], comp = []; seen[i] = 1;
+    while(st.length){
+      const c = st.pop(); comp.push(c);
+      const cx = c%w, cy = (c/w)|0;
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+        const nx = cx+dx, ny = cy+dy;
+        if(nx<0||ny<0||nx>=w||ny>=h) return;
+        const ni = ny*w+nx;
+        if(mark[ni] && !seen[ni] && grid[ni] && grid[ni].f===grid[c].f){ seen[ni]=1; st.push(ni); }
+      });
+    }
+    out.push(comp);
+  }
+  return out;
+}
+
+function hasMove(){
+  const {w,h,grid} = S;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    for(const [dx,dy] of [[1,0],[0,1]]){
+      const nx = x+dx, ny = y+dy;
+      if(nx>=w || ny>=h) continue;
+      const i = y*w+x, j = ny*w+nx;
+      [grid[i],grid[j]] = [grid[j],grid[i]];
+      const ok = findGroups().length > 0;
+      [grid[i],grid[j]] = [grid[j],grid[i]];
+      if(ok) return true;
+    }
+  }
+  return false;
+}
+
+/* ---------------- 描画 ---------------- */
+function layout(){
+  const wrap = document.getElementById('boardWrap');
+  const availW = Math.min(wrap.clientWidth || 340, 500) - 2;
+  const availH = Math.max(200, window.innerHeight * 0.46);
+  const ts = Math.floor(Math.min(availW / S.w, availH / S.h));
+  document.documentElement.style.setProperty('--ts', ts + 'px');
+  board.style.width  = ts * S.w + 'px';
+  board.style.height = ts * S.h + 'px';
+  return ts;
+}
+function tileSize(){ return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ts')); }
+
+function sync(spawnFromTop = true){
+  const ts = tileSize(), live = new Set();
+  for(let y=0;y<S.h;y++) for(let x=0;x<S.w;x++){
+    const c = S.grid[y*S.w+x];
+    if(!c) continue;
+    live.add(c.id);
+    let el = tileEls.get(c.id);
+    if(!el){
+      el = document.createElement('div');
+      el.className = 'tile';
+      el.innerHTML = `<div class="face" style="--fc:${F[c.f].color};--fr:${F[c.f].shape}">${F[c.f].icon}</div>`;
+      el.dataset.id = c.id;
+      board.appendChild(el);
+      tileEls.set(c.id, el);
+      el.style.transition = 'none';
+      el.style.transform = `translate(${x*ts}px,${(spawnFromTop ? y-S.h : y)*ts}px)`;
+      void el.offsetHeight;
+      el.style.transition = '';
+    }
+    el.style.transform = `translate(${x*ts}px,${y*ts}px)`;
+    el.classList.toggle('sel', S.sel === y*S.w+x);
+    el.firstElementChild.classList.toggle('gold', c.sp === 'gold');
+    el.firstElementChild.classList.toggle('silver', c.sp === 'silver');
+  }
+  for(const [id,el] of [...tileEls]) if(!live.has(id)){ el.remove(); tileEls.delete(id); }
+}
+
+function hud(){
+  const c = ctx(), m = staticMult(c);
+  const st = stageData(S.stage);
+  $('stName').textContent = st.name;
+  $('stNo').textContent = 'STAGE ' + (S.stage+1);
+  $('harvest').textContent = S.harvest.toLocaleString();
+  $('target').textContent = '/ ' + S.target.toLocaleString() + ' 収穫';
+  const pct = Math.max(0, Math.min(100, S.harvest/S.target*100));
+  $('bar').classList.toggle('neg', S.harvest < 0);
+  $('bar').firstElementChild.style.width = (S.harvest < 0 ? 100 : pct) + '%';
+  $('turns').textContent = (S.turnsMax - S.turns);
+  $('turns').parentElement.classList.toggle('warn', S.turnsMax - S.turns <= 3);
+  $('pips').innerHTML = Array.from({length:S.turnsMax}, (_,i)=>{
+    const n = i+1;
+    const cls = [
+      n % CONFIG.storeInterval === 0 ? 'store' : '',
+      n <= S.turns ? 'used' : '',
+      n === S.turns+1 ? 'now' : ''
+    ].filter(Boolean).join(' ');
+    return `<i class="${cls}"></i>`;
+  }).join('');
+  $('mult').textContent = fmtMult(m);
+  $('multMeter').classList.toggle('negative', m < 0);
+  $('seeds').textContent = S.seeds;
+  $('bombs').textContent = S.bombs;
+
+  const maxSlots = Math.min(CONFIG.maxSlots, S.slots + c.slotAdd);
+  $('slotCount').textContent = `${S.items.length} / ${maxSlots}`;
+  $('itemSlots').innerHTML = Array.from({length: Math.max(maxSlots, S.items.length)}, (_,i)=>{
+    const it = S.items[i];
+    if(!it) return `<div class="slot"></div>`;
+    return `<button class="slot filled ${it.neg?'neg':''}" data-info="item:${i}">
+      <span class="ic">${it.ic}</span><span class="nm">${it.n}</span></button>`;
+  }).join('');
+  $('treSlots').innerHTML = Array.from({length:CONFIG.treasureSlots}, (_,i)=>{
+    const t = S.treasures[i];
+    if(!t) return `<div class="slot"></div>`;
+    return `<button class="slot filled tre" data-info="tre:${i}">
+      <span class="ic">${t.ic}</span><span class="nm">${t.n}</span></button>`;
+  }).join('');
+  $('btnBomb').disabled = S.bombs <= 0 || S.busy;
+  $('btnBomb').textContent = S.bombMode ? '💣 対象をタップ' : `💣 爆弾を使う (${S.bombs})`;
+}
+
+function floatXY(gx, gy, text, color, o){
+  o = o || {};
+  const run = () => {
+    const ts = tileSize();
+    const el = document.createElement('div');
+    el.className = 'float' + (o.cls ? ' ' + o.cls : '');
+    el.textContent = text;
+    el.style.cssText += `left:${gx*ts}px;top:${gy*ts + (o.dy||0)*ts}px;width:${ts}px;`
+                      + `text-align:center;color:${color||'#fff'}`;
+    board.appendChild(el);
+    setTimeout(()=>el.remove(), T(1200));
+  };
+  o.delay ? setTimeout(run, o.delay) : run();
+}
+function floatText(idx, text, color, o){
+  floatXY(idx%S.w, (idx/S.w)|0, text, color, o);
+}
+/* 盤面の中央に大きく知らせる（ターン数の告知など） */
+function announce(text, color){
+  const el = $('announce');
+  el.textContent = text;
+  el.style.color = color || 'var(--cream)';
+  el.classList.remove('show');
+  void el.offsetHeight;
+  el.classList.add('show');
+}
+
+/* プレイヤーに操作が戻るタイミングで、残りターンが少なければ知らせる */
+function turnReady(){
+  const left = S.turnsMax - S.turns;
+  if(left <= 0 || left > CONFIG.warnTurns) return;
+  announce(`あと${left}ターン`, left <= 1 ? 'var(--bad)' : 'var(--lantern)');
+}
+
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 1800);
+}
+
+/* ============================================================================
+   ターン処理
+   ========================================================================= */
+async function trySwap(a, b){
+  if(S.busy) return;
+  S.busy = true; S.sel = null;
+  [S.grid[a], S.grid[b]] = [S.grid[b], S.grid[a]];
+  sync(false); await sleep(T(200));
+  if(!findGroups().length){
+    [S.grid[a], S.grid[b]] = [S.grid[b], S.grid[a]];
+    sync(false);
+    board.classList.add('shake');
+    setTimeout(()=>board.classList.remove('shake'), 240);
+    await sleep(T(220));
+    S.busy = false; hud(); return;
+  }
+  S.turns++;
+  await resolve();
+  await endTurn();
+}
+
+/* 特殊フルーツ（黄金・銀）関連 */
+const goldNeed   = c => Math.max(3, CONFIG.goldThreshold   - c.goldCut);
+const silverNeed = c => Math.max(3, CONFIG.silverThreshold - c.silverCut);
+const SP = {
+  gold:   {n:'黄金', col:'#ffdf6b'},
+  silver: {n:'銀',   col:'#dfe8ee'}
+};
+const spRadius = (sp, c) => sp === 'gold'
+  ? CONFIG.goldRadius + c.goldRange : CONFIG.silverRadius + c.silverRange;
+const spMult = (sp, c) => sp === 'gold'
+  ? CONFIG.goldMult + c.goldMultAdd : CONFIG.silverMult + c.silverMultAdd;
+
+// そろえた数に応じて生まれる特殊フルーツの種類（黄金が優先）
+function bornType(len, c){
+  if(len >= goldNeed(c)) return 'gold';
+  if(len >= silverNeed(c)) return 'silver';
+  return null;
+}
+
+// グループの重心にいちばん近いセルを返す
+function centerCell(g){
+  const cx = g.reduce((a,i) => a + (i%S.w), 0) / g.length;
+  const cy = g.reduce((a,i) => a + ((i/S.w)|0), 0) / g.length;
+  let best = g[0], bd = Infinity;
+  for(const i of g){
+    const d = Math.pow(i%S.w - cx, 2) + Math.pow(((i/S.w)|0) - cy, 2);
+    if(d < bd){ bd = d; best = i; }
+  }
+  return best;
+}
+
+// 起爆する特殊フルーツの周囲（1波ぶん）を切り出す。値は適用されるスコア倍率。
+function blastMap(list, c){
+  const out = new Map(), src = new Set(list);
+  for(const i of list){
+    const sp = S.grid[i].sp, r = spRadius(sp, c), lim = r*r + 1, gm = spMult(sp, c);
+    const x = i%S.w, y = (i/S.w)|0;
+    for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
+      if(dx*dx + dy*dy > lim) continue;
+      const nx = x+dx, ny = y+dy;
+      if(nx<0||ny<0||nx>=S.w||ny>=S.h) continue;
+      const ni = ny*S.w+nx;
+      if(!S.grid[ni] || src.has(ni)) continue;
+      out.set(ni, Math.max(out.get(ni) || 0, gm));   // 重なったら強いほうを採用
+    }
+  }
+  return out;
+}
+
+/* 特殊フルーツの誘爆を1波ずつ進める。
+   巻き込まれた特殊フルーツはその場では消えず、盤面に残ったまま次の波で起爆する。 */
+async function detonate(fuse, c, chainMul){
+  let total = 0, wave = 0;
+
+  while(fuse.length){
+    wave++;
+    const hasGold = fuse.some(i => S.grid[i].sp === 'gold');
+    const label = hasGold ? SP.gold : SP.silver;
+
+    // 起爆するフルーツを光らせて溜めをつくる
+    fuse.forEach(i => {
+      const cell = S.grid[i], el = cell && tileEls.get(cell.id);
+      if(el) el.firstElementChild.classList.add('charge');
+    });
+    floatXY((S.w-1)/2, S.h*0.40,
+            wave > 1 ? `誘爆 ${wave}` : `${label.n}の爆発`,
+            label.col, {cls:'grp'});
+    await sleep(T(hasGold ? 300 : 200));
+
+    const zone = blastMap(fuse, c);
+    const next = [];
+    let k = 0;
+    for(const [i, gm] of zone){
+      const cell = S.grid[i];
+      const v = (F[cell.f].base + c.baseAdd + (c.fruitScore[cell.f] || 0)) * gm * chainMul;
+      total += v;
+      floatText(i, '+' + Math.round(v), gm >= CONFIG.goldMult ? '#ffdf6b' : '#dfe8ee',
+                {cls:'mini', delay:T(40 + Math.min(k++, 12) * 16)});
+      if(cell.sp) next.push(i);       // 次の波まで盤面に残す
+    }
+
+    const kill = new Set(fuse);
+    for(const [i] of zone) if(!next.includes(i)) kill.add(i);
+    S.stageCleared += kill.size;
+    await clearCells(kill);
+
+    if(next.length) await sleep(T(260));   // 残った特殊フルーツを見せる間
+    fuse = next;
+  }
+  return total;
+}
+
+async function resolve(freeAction){
+  const c = ctx();
+  let chain = 0, raw = 0, dyn = 0, procs = 0, seedGain = 0;
+
+  while(true){
+    const groups = findGroups();
+    if(!groups.length) break;
+    chain++;
+    const extras = new Set();
+    let chainMul = 1 + (chain-1) * (CONFIG.baseChain + c.chainAdd);
+
+    for(const g of groups){
+      let gMul = 1, gBonus = 0, gBase = 0;
+      g.forEach((i, k) => {
+        const cell = S.grid[i], f = F[cell.f];
+        const cellScore = f.base + c.baseAdd + (c.fruitScore[cell.f] || 0);
+        gBase += cellScore;
+        // 1個ずつの点数を消える瞬間に表示
+        floatText(i, cellScore, cellScore < 0 ? '#e35b6d' : '#fff',
+                  {cls:'mini', delay: T(Math.min(k, 6) * 34)});
+        // 固有効果判定（§4.1）
+        const chance = CONFIG.effectChance + c.chanceAdd + (c.fruitChance[cell.f] || 0);
+        if(Math.random() < chance){
+          procs++; dyn += c.perProc;
+          floatText(i, f.fx, f.color, {cls:'fx', dy:0.58, delay: T(Math.min(k,6)*34)});
+          switch(cell.f){
+            case 'apple':  gBonus += 45; break;
+            case 'orange': seedGain += 1; break;
+            case 'banana': {
+              const r = 1 + c.bananaRange, x = i%S.w, y = (i/S.w)|0;
+              for(let d=-r; d<=r; d++){
+                for(const p of [[x+d,y],[x,y+d]]){
+                  const [nx,ny] = p;
+                  if(nx<0||ny<0||nx>=S.w||ny>=S.h) continue;
+                  const ni = ny*S.w+nx;
+                  if(S.grid[ni] && !g.includes(ni)) extras.add(ni);
+                }
+              }
+              break;
+            }
+            case 'grape':  dyn += 0.2 + c.grapeBonus; break;
+            case 'straw':  gMul *= 1.6; break;
+            case 'melon':  gBonus += f.base + c.baseAdd + (c.fruitScore.melon || 0); break;
+          }
+        }
+        // 不思議な種（§9.1）
+        if(Math.random() < c.seedAdd + CONFIG.seedChance * c.seedMul){
+          seedGain++; raw += c.seedScore;
+        }
+      });
+      const sizeB = Math.max(0, g.length-3) * (CONFIG.sizeBonus + c.sizeAdd);
+      const gScore = (gBase + sizeB + gBonus) * gMul * chainMul;
+      raw += gScore;
+      // グループの合計を中央にまとめて表示
+      const cx = g.reduce((a,i) => a + (i%S.w), 0) / g.length;
+      const cy = g.reduce((a,i) => a + ((i/S.w)|0), 0) / g.length;
+      floatXY(cx, cy, (gScore < 0 ? '' : '+') + Math.round(gScore),
+              gScore < 0 ? '#e35b6d' : '#f5b942',
+              {cls:'grp', delay: T(Math.min(g.length,7)*34 + 170)});
+    }
+
+    const all = new Set();
+    groups.forEach(g => g.forEach(i => all.add(i)));
+
+    // まとめ消しの中心に特殊フルーツが残る（4個で銀、5個で黄金）
+    const born = [];
+    for(const g of groups){
+      const sp = bornType(g.length, c);
+      if(!sp) continue;
+      const seed = centerCell(g);
+      born.push({i:seed, sp});
+      all.delete(seed);
+    }
+
+    // 追加消去（バナナ）は基礎スコアのみ
+    for(const i of extras){
+      if(all.has(i) || born.some(b => b.i === i)) continue;
+      all.add(i);
+      const v = (F[S.grid[i].f].base + c.baseAdd) * chainMul;
+      raw += v;
+      floatText(i, (v < 0 ? '' : '+') + Math.round(v), '#ffe08a', {cls:'mini', delay:T(120)});
+    }
+
+    // 消去対象に含まれる特殊フルーツは、通常の消去が終わってから起爆させる
+    const fuse = [...all].filter(i => S.grid[i] && S.grid[i].sp);
+    fuse.forEach(i => all.delete(i));
+
+    // 生まれた特殊フルーツを確定（消さずに盤面へ残す）
+    born.forEach(b => {
+      if(!S.grid[b.i]) return;
+      S.grid[b.i].sp = b.sp;
+      floatText(b.i, SP[b.sp].n, SP[b.sp].col, {cls:'fx', dy:0.58, delay:T(200)});
+    });
+    if(born.length) sync(false);
+
+    S.stageCleared += all.size;
+    if(chain >= 3) { dyn += c.chain3; c.chain3 = 0; }
+    if(chain > 1) floatXY((S.w-1)/2, S.h*0.18, `${chain} 連鎖  ×${Math.round(chainMul*100)/100}`,
+                          '#f5b942', {cls:'grp', delay:T(60)});
+
+    await clearCells(all);
+    if(fuse.length) raw += await detonate(fuse, c, chainMul);
+    await gravity();
+  }
+
+  if(seedGain){ S.seeds += seedGain; toast(`不思議な種 +${seedGain}`); }
+
+  const finalMult = staticMult(c) * (1 + dyn);
+  const gained = Math.round(raw * finalMult);
+  if(gained !== 0 || raw !== 0){
+    S.harvest += gained;
+    const ts = $('turnScore');
+    ts.textContent = (gained >= 0 ? '+' : '') + gained.toLocaleString();
+    ts.style.color = gained >= 0 ? '#f5b942' : '#e35b6d';
+    ts.classList.remove('show'); void ts.offsetHeight; ts.classList.add('show');
+  }
+  hud();
+  await sleep(T(520));
+
+  if(!hasMove()){
+    toast('動かせる手がないため盤面を作り直しました');
+    buildBoard(); sync(); await sleep(T(300));
+  }
+}
+
+async function clearCells(set){
+  for(const i of set){
+    const cell = S.grid[i];
+    if(!cell) continue;
+    const el = tileEls.get(cell.id);
+    if(el){ el.classList.add('pop'); tileEls.delete(cell.id); setTimeout(()=>el.remove(), T(300)); }
+    S.grid[i] = null;
+  }
+  await sleep(T(360));
+}
+
+async function gravity(){
+  refreshSpawn();
+  for(let x=0;x<S.w;x++){
+    const col = [];
+    for(let y=S.h-1;y>=0;y--) if(S.grid[y*S.w+x]) col.push(S.grid[y*S.w+x]);
+    for(let y=S.h-1, k=0; y>=0; y--, k++)
+      S.grid[y*S.w+x] = k < col.length ? col[k] : newCell();
+  }
+  sync(true);
+  await sleep(T(300));
+}
+
+async function endTurn(){
+  if(S.harvest >= S.target){ await stageClear(); return; }
+  if(S.turns >= S.turnsMax){ stageFail(); return; }
+  if(S.turns % CONFIG.storeInterval === 0){ openStore(); return; }
+  S.busy = false; hud(); turnReady();
+}
+
+/* ---------------- 爆弾（§9.3 暫定仕様） ---------------- */
+async function useBomb(idx){
+  const c = ctx(), r = CONFIG.bombRadius + c.bombAdd;
+  S.bombs--; S.bombMode = false;
+  board.classList.remove('bombing');
+  S.busy = true;
+  const x = idx%S.w, y = (idx/S.w)|0, set = new Set();
+  for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
+    const nx = x+dx, ny = y+dy;
+    if(nx<0||ny<0||nx>=S.w||ny>=S.h) continue;
+    if(S.grid[ny*S.w+nx]) set.add(ny*S.w+nx);
+  }
+  let raw = 0;
+  for(const i of set) raw += F[S.grid[i].f].base + c.baseAdd + (c.fruitScore[S.grid[i].f]||0);
+  // 巻き込んだ特殊フルーツは爆風のあとで起爆する
+  const fuse = [...set].filter(i => S.grid[i] && S.grid[i].sp);
+  fuse.forEach(i => set.delete(i));
+  S.stageCleared += set.size;
+  await clearCells(set);
+  if(fuse.length) raw += await detonate(fuse, c, 1);
+  S.harvest += Math.round(raw * staticMult(c));
+  await gravity();
+  await resolve(true);            // 誘爆した連鎖も通常どおり処理（ターンは消費しない）
+  S.busy = false;
+  hud();
+  if(S.harvest >= S.target) await stageClear();
+}
+
+/* ============================================================================
+   ストア（§6.3）
+   ========================================================================= */
+function rollStore(){
+  const c = ctx(), n = c.storeSize, pool = [];
+  for(const it of ITEMS){
+    if(it.unique && S.items.some(x => x.id === it.id)) continue;
+    if(it.need && !S.fruitIds.includes(it.need)) continue;
+    pool.push(it);
+  }
+  const out = [];
+  while(out.length < n && pool.length){
+    const i = rnd(pool.length);
+    out.push(pool[i]); pool.splice(i, 1);
+  }
+  S.store = out;
+}
+
+function openStore(){
+  S.busy = false;
+  rollStore();
+  renderStore();
+}
+
+function renderStore(discardMode){
+  const c = ctx();
+  const maxSlots = Math.min(CONFIG.maxSlots, S.slots + c.slotAdd);
+  const full = S.items.length >= maxSlots;
+  const cards = S.store.map((it,i) =>
+    `<button class="card ${it.neg?'neg':''}" data-buy="${i}">
+       <span class="ic">${it.ic}</span>
+       <span><span class="t">${it.n}<span class="tag">${it.tag}</span></span>
+       <div class="d">${it.d}</div></span>
+     </button>`).join('');
+
+  const owned = S.items.map((it,i) =>
+    `<button class="card ${it.neg?'neg':''}" data-drop="${i}">
+       <span class="ic">${it.ic}</span>
+       <span><span class="t">${it.n}</span><div class="d">${it.d}</div></span>
+     </button>`).join('');
+
+  sheet(`
+    <h2>種を蒔く</h2>
+    <div class="sub">残り ${S.turnsMax - S.turns} ターン ・ 収穫 ${S.harvest.toLocaleString()} / ${S.target.toLocaleString()} ・ 倍率 ${fmtMult(staticMult(c))}</div>
+    ${discardMode ? `<div class="sub" style="color:var(--bad)">アイテム枠が満杯です。手放すアイテムを選んでください。</div>${owned}
+      <div class="row"><button class="btn ghost" data-act="cancelDrop">やめる</button></div>`
+    : `${cards}
+      <div class="row">
+        <button class="btn" data-act="reroll" ${S.seeds < CONFIG.rerollCost ? 'disabled' : ''}>
+          🌱 引き直す (種 ${CONFIG.rerollCost})</button>
+        <button class="btn ghost" data-act="skip">取らずに次へ</button>
+      </div>
+      <div class="row"><button class="btn ghost" data-act="bd">📊 倍率の内訳を見る</button></div>
+      ${full ? '<div class="sub" style="margin-top:8px;color:var(--bad)">枠が満杯です。取得すると手放すアイテムを選びます。</div>' : ''}`}
+  `, el => {
+    el.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
+      const it = S.store[+b.dataset.buy];
+      if(S.items.length >= maxSlots){ S.pending = it; renderStore(true); return; }
+      S.items.push(it); closeSheet(); hud(); turnReady();
+    });
+    el.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => {
+      S.items.splice(+b.dataset.drop, 1);
+      S.items.push(S.pending); S.pending = null;
+      closeSheet(); hud(); turnReady();
+    });
+    const act = el.querySelector('[data-act="reroll"]');
+    if(act) act.onclick = () => { S.seeds -= CONFIG.rerollCost; rollStore(); renderStore(); hud(); };
+    const sk = el.querySelector('[data-act="skip"]');
+    if(sk) sk.onclick = () => { closeSheet(); hud(); turnReady(); };
+    const cd = el.querySelector('[data-act="cancelDrop"]');
+    if(cd) cd.onclick = () => { S.pending = null; renderStore(); };
+    const bd = el.querySelector('[data-act="bd"]');
+    if(bd) bd.onclick = () => openBreakdown(() => renderStore());
+  });
+}
+
+/* ============================================================================
+   ステージ進行
+   ========================================================================= */
+function startStage(){
+  const st = stageData(S.stage);
+  S.w = st.w; S.h = st.h;
+  S.target = st.target;
+  S.turns = 0;
+  S.stageCleared = 0;
+  S.harvest = 0;
+  S.items = [];
+  const c1 = ctx();                       // アイテムをリセットした状態でたからものを再評価
+  S.turnsMax = st.turns + c1.turnAdd;
+  S.seeds = c1.startSeeds;
+  const types = Math.max(3, st.fruits - c1.typeCut);
+  S.fruitIds = FRUITS.slice(0, Math.min(FRUITS.length, types)).map(f => f.id);
+
+  for(let i=0;i<c1.startItems;i++){ rollStore(); S.items.push(pick(S.store)); }
+
+  tileEls.forEach(el => el.remove()); tileEls.clear();
+  buildBoard();
+  layout(); sync(true); hud();
+  S.busy = false; S.sel = null; S.bombMode = false;
+
+  sheet(`
+    <h2>${st.name}</h2>
+    <div class="sub">STAGE ${S.stage+1}</div>
+    <div class="doc">
+      <b>${st.turns + c1.turnAdd}</b> ターン以内に <b>${st.target.toLocaleString()}</b> 収穫。<br>
+      盤面 ${st.w}×${st.h} ／ 登場フルーツ ${S.fruitIds.length}種
+      ${S.bombs ? `<br>持ち越した爆弾 <b>${S.bombs}</b> 個` : ''}
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn primary" data-act="go">農園を開く</button></div>
+  `, el => el.querySelector('[data-act="go"]').onclick = () => {
+    closeSheet();
+    announce(`あと${S.turnsMax}ターン！`, 'var(--lantern)');
+  });
+}
+
+async function stageClear(){
+  S.busy = true;
+  const gained = S.seeds;                 // 余った種は爆弾へ（§9.3）
+  S.bombs += gained;
+  S.seeds = 0;
+  S.slots = Math.min(CONFIG.maxSlots, S.slots + CONFIG.slotGain);
+  hud();
+
+  const canTake = S.treasures.length < CONFIG.treasureSlots;
+  const pool = TREASURES.filter(t => !S.treasures.some(x => x.id === t.id));
+  const offer = [];
+  while(offer.length < 3 && pool.length) offer.push(...pool.splice(rnd(pool.length), 1));
+
+  const body = canTake && offer.length
+    ? `<h3 class="sec">たからものを発見した</h3>` + offer.map((t,i)=>
+        `<button class="card tre" data-tre="${i}">
+          <span class="ic">${t.ic}</span>
+          <span><span class="t">${t.n}</span><div class="d">${t.d}</div></span></button>`).join('')
+    : `<div class="sub">たからもの枠が満杯のため、今回は持ち帰れなかった。</div>`;
+
+  sheet(`
+    <h2>収穫達成</h2>
+    <div class="sub">${stageData(S.stage).name} ／ ${S.harvest.toLocaleString()} 収穫</div>
+    <div class="doc">
+      余った不思議な種 ${gained} 個が <b>爆弾</b> になった。<br>
+      アイテム枠が <b>${Math.min(CONFIG.maxSlots, S.slots)}</b> に増えた。<br>
+      持っていたアイテムは畑に還った。
+    </div>
+    ${body}
+    <div class="row" style="margin-top:12px"><button class="btn primary" data-act="next">次の農園へ</button></div>
+  `, el => {
+    el.querySelectorAll('[data-tre]').forEach(b => b.onclick = () => {
+      S.treasures.push(offer[+b.dataset.tre]);
+      S.stage++; closeSheet(); startStage();
+    });
+    el.querySelector('[data-act="next"]').onclick = () => { S.stage++; closeSheet(); startStage(); };
+  });
+}
+
+function stageFail(){
+  S.busy = true;
+  sheet(`
+    <h2>ターン切れ</h2>
+    <div class="sub">${stageData(S.stage).name}</div>
+    <div class="doc">
+      収穫 <b>${S.harvest.toLocaleString()}</b> / ${S.target.toLocaleString()}。<br>
+      目標に届かなかった。たからものは手元に残る。
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" data-act="retry">このステージをやり直す</button>
+    </div>
+    <div class="row"><button class="btn ghost" data-act="reset">最初から</button></div>
+  `, el => {
+    el.querySelector('[data-act="retry"]').onclick = () => { closeSheet(); startStage(); };
+    el.querySelector('[data-act="reset"]').onclick = () => { closeSheet(); newGame(); };
+  });
+}
+
+function newGame(){
+  S.stage = 0; S.slots = CONFIG.startSlots; S.treasures = []; S.bombs = 0; S.uid = 0;
+  startStage();
+}
+
+/* ============================================================================
+   モーダル / 入力
+   ========================================================================= */
+/* ---------------- 図鑑：全アイテム一覧 ---------------- */
+const TAG_ORDER = ['スコア','倍率','負倍率','確率','出現率','果実','シナジー','特殊'];
+
+function openCatalog(back){
+  if(typeof back !== 'function') back = null;
+  const done = () => back ? back() : closeSheet();
+  const owned = id => S.items.filter(x => x.id === id).length;
+  const held  = id => S.treasures.some(x => x.id === id);
+
+  const card = (x, kind) => {
+    const n = kind === 'item' ? owned(x.id) : (held(x.id) ? 1 : 0);
+    const cls = [kind === 'tre' ? 'tre' : (x.neg ? 'neg' : ''), n ? 'on' : ''].filter(Boolean).join(' ');
+    const gate = x.need ? `<span class="tag">${F[x.need].name}が出るステージのみ</span>` : '';
+    const uniq = x.unique ? `<span class="tag">1個まで</span>` : '';
+    return `<div class="card ${cls}">
+      <span class="ic">${x.ic}</span>
+      <span style="flex:1"><span class="t">${x.n}${gate}${uniq}</span>
+        <div class="d">${x.d}</div></span>
+      <span class="chk">${n > 1 ? '×' + n : '✓'}</span>
+    </div>`;
+  };
+
+  const byTag = TAG_ORDER.map(tag => {
+    const list = ITEMS.filter(i => i.tag === tag);
+    if(!list.length) return '';
+    return `<h3 class="sec">${tag}（${list.length}）</h3>` + list.map(i => card(i, 'item')).join('');
+  }).join('');
+
+  const misc = ITEMS.filter(i => !TAG_ORDER.includes(i.tag));
+  const fruitRows = FRUITS.map(f => `<div class="card" style="border-color:${f.color}44">
+      <span class="ic">${f.icon}</span>
+      <span style="flex:1"><span class="t">${f.name}<span class="tag">基礎 ${f.base}</span></span>
+        <div class="d">${f.fx}：${f.fxDesc}</div></span>
+    </div>`).join('');
+
+  sheet(`
+    <h2>図鑑</h2>
+    <div class="sub">アイテム ${ITEMS.length} 種 ／ たからもの ${TREASURES.length} 種 ／ フルーツ ${FRUITS.length} 種<br>
+      所持中のものは金色の枠と ✓ が付きます。</div>
+
+    ${byTag}
+    ${misc.length ? `<h3 class="sec">その他</h3>` + misc.map(i => card(i,'item')).join('') : ''}
+
+    <h3 class="sec">たからもの（永続・${CONFIG.treasureSlots}枠）</h3>
+    ${TREASURES.map(t => card(t, 'tre')).join('')}
+
+    <h3 class="sec">フルーツと固有効果</h3>
+    ${fruitRows}
+
+    <div class="row" style="margin-top:16px"><button class="btn primary" data-act="c">${back ? '戻る' : '閉じる'}</button></div>
+  `, el => el.querySelector('[data-act="c"]').onclick = done, done);
+}
+
+/* ---------------- 倍率の内訳 ---------------- */
+function openBreakdown(back){
+  if(typeof back !== 'function') back = null;   // クリックイベントが渡ってきても無視する
+  if(S.busy && !back) return;
+  const c = ctx();
+  const m = staticMult(c);
+  const pct = v => Math.round(v*1000)/10 + '%';
+  const sgn = v => (v >= 0 ? '+' : '') + v;
+
+  // 1個あたりの基礎スコア・固有効果率・出現率
+  const rates = spawnRates();
+  const evenRate = 1 / S.fruitIds.length;
+  const fruitRows = S.fruitIds.map(id => {
+    const f = F[id];
+    const score = f.base + c.baseAdd + (c.fruitScore[id] || 0);
+    const ch = Math.min(1, CONFIG.effectChance + c.chanceAdd + (c.fruitChance[id] || 0));
+    const rt = rates[id] || 0;
+    const skew = rt > evenRate * 1.08 ? 'var(--lantern)' : rt < evenRate * 0.92 ? 'var(--bad)' : 'var(--dim)';
+    return `<tr>
+      <td class="ic">${f.icon}</td>
+      <td>${f.name}<br><span style="font-size:10px;color:var(--dim)">${f.fx}：${f.fxDesc}</span></td>
+      <td>${score}
+        <br><span style="font-size:10px;color:${ch > CONFIG.effectChance ? 'var(--lantern)' : 'var(--dim)'};font-weight:400">効果 ${pct(ch)}</span>
+        <br><span style="font-size:10px;color:${skew};font-weight:400">出現 ${pct(rt)}</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // まとめ消し（パターン）ボーナス
+  const sb = CONFIG.sizeBonus + c.sizeAdd;
+  const sizeRows = [3,4,5,6,7].map(n =>
+    `<tr class="${n === 3 ? 'mute' : ''}"><td colspan="2">${n}個まとめて消し</td>
+     <td>${n === 3 ? '±0' : '+' + (n-3)*sb}</td></tr>`).join('');
+
+  // 連鎖倍率
+  const step = CONFIG.baseChain + c.chainAdd;
+  const chainRows = [1,2,3,4,5].map(n =>
+    `<tr class="${n === 1 ? 'mute' : ''}"><td colspan="2">${n} 連鎖目</td>
+     <td>×${Math.round((1+(n-1)*step)*100)/100}</td></tr>`).join('');
+
+  // スコア倍率の出どころ
+  const multRows = c.multSrc.length
+    ? c.multSrc.map(s => `<tr class="${s.v < 0 ? 'neg' : ''}">
+        <td class="ic">${s.item.ic}</td><td>${s.item.n}</td><td>×${s.v}</td></tr>`).join('')
+    : `<tr class="mute"><td colspan="3">倍率アイテムなし（×1）</td></tr>`;
+  const inverted = c.invert && c.mults.reduce((a,b)=>a*b,1) < 0;
+
+  // ターン中に一時的に増える分
+  const tmp = [];
+  if(S.fruitIds.includes('grape')) tmp.push(['🍇','ぶどうの醸造が発動', '+' + (Math.round((0.2+c.grapeBonus)*100)/100)]);
+  if(c.perProc) tmp.push(['🔥','固有効果が1回発動するごと', '+' + (Math.round(c.perProc*100)/100)]);
+  if(c.chain3)  tmp.push(['⚙️','3連鎖以上に到達したターン', '+' + (Math.round(c.chain3*100)/100)]);
+
+  sheet(`
+    <h2>倍率の内訳</h2>
+    <div class="sub">今のビルドで1ターンに起きること</div>
+
+    <h3 class="sec">計算式</h3>
+    <div class="doc" style="font-size:11.5px">
+      （フルーツの基礎スコア合計 ＋ まとめ消しボーナス）× 連鎖倍率 × <b>スコア倍率</b>
+    </div>
+
+    <h3 class="sec">フルーツ 1個あたり ／ 効果率 ／ 出現率</h3>
+    <table class="tbl">${fruitRows}</table>
+    ${c.convert.length ? `<div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
+      「にせもの」系は抽選のあとで差し替わるため、上の出現率は差し替え後の実際の割合です。</div>` : ''}
+
+    <h3 class="sec">まとめ消しボーナス（1個超過につき +${sb}）</h3>
+    <table class="tbl">${sizeRows}</table>
+
+    <h3 class="sec">連鎖倍率（1連鎖ごとに +${Math.round(step*100)/100}）</h3>
+    <table class="tbl">${chainRows}</table>
+
+    <h3 class="sec">特殊フルーツ</h3>
+    <table class="tbl">
+      <tr><td class="ic">🥇</td><td>黄金が生まれる同時消し数</td><td>${goldNeed(c)} 個以上</td></tr>
+      <tr><td class="ic">💥</td><td>黄金の爆発半径 ／ 倍率</td>
+        <td>${spRadius('gold',c)} ／ ×${Math.round(spMult('gold',c)*100)/100}</td></tr>
+      ${silverNeed(c) < goldNeed(c) ? `
+      <tr><td class="ic">🥈</td><td>銀が生まれる同時消し数</td><td>${silverNeed(c)} 個</td></tr>
+      <tr><td class="ic">✨</td><td>銀の爆発半径 ／ 倍率</td>
+        <td>${spRadius('silver',c)} ／ ×${Math.round(spMult('silver',c)*100)/100}</td></tr>`
+      : `<tr class="mute"><td class="ic">🥈</td><td colspan="2">黄金の条件が下がったため、銀は生まれません</td></tr>`}
+    </table>
+    <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
+      特殊フルーツは塊の中心に残り、次に巻き込まれたときに周囲を抉ります。
+      巻き込まれた特殊フルーツは一拍おいて誘爆します。
+    </div>
+
+    <h3 class="sec">スコア倍率</h3>
+    <table class="tbl">
+      ${multRows}
+      ${inverted ? `<tr><td class="ic">🔃</td><td>反転の実（負のため反転）</td><td>×-1.5</td></tr>` : ''}
+      <tr class="tot ${m < 0 ? 'neg' : ''}"><td colspan="2">現在のスコア倍率</td><td>${fmtMult(m)}</td></tr>
+    </table>
+    ${c.negCount ? `<div class="doc" style="font-size:11.5px;margin-top:8px;
+        color:${m < 0 ? 'var(--bad)' : 'var(--lantern)'}">
+      負倍率アイテム <b>${c.negCount}</b> 個（${c.negCount % 2 === 0 ? '偶数' : '奇数'}）。
+      ${m < 0
+        ? 'いま収穫するほど収穫量が減ります。もう1つ負の倍率を足すか、反転の実で正に戻せます。'
+        : '偶数個そろっているので正に転じています。'}
+    </div>` : ''}
+
+    ${tmp.length ? `<h3 class="sec">このターン中に増える倍率（一時的）</h3>
+      <table class="tbl">${tmp.map(t =>
+        `<tr><td class="ic">${t[0]}</td><td>${t[1]}</td><td>${t[2]}</td></tr>`).join('')}</table>
+      <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
+        一時倍率は合計されたあと (1 + 合計) としてスコア倍率に掛かります。</div>` : ''}
+
+    <h3 class="sec">確率</h3>
+    <table class="tbl">
+      <tr><td class="ic">🌱</td><td>不思議な種の出現率（1個消すごと）</td>
+        <td>${pct(Math.min(1, c.seedAdd + CONFIG.seedChance * c.seedMul))}</td></tr>
+      <tr><td class="ic">✨</td><td>固有効果の基本発生率</td>
+        <td>${pct(Math.min(1, CONFIG.effectChance + c.chanceAdd))}</td></tr>
+    </table>
+
+    <div class="row" style="margin-top:16px">
+      <button class="btn" data-act="list">📖 図鑑</button>
+      <button class="btn primary" data-act="c">${back ? 'ストアに戻る' : '閉じる'}</button>
+    </div>
+  `, el => {
+    el.querySelector('[data-act="c"]').onclick = () => back ? back() : closeSheet();
+    el.querySelector('[data-act="list"]').onclick = () => openCatalog(() => openBreakdown(back));
+  }, () => back ? back() : closeSheet());
+}
+
+function sheet(html, bind, onClose){
+  const el = $('sheet');
+  el.scrollTop = 0;
+  el.innerHTML = (onClose ? `<button class="sheetx" data-x aria-label="閉じる">✕</button>` : '') + html;
+  $('modal').classList.add('on');
+  if(onClose){
+    const x = el.querySelector('[data-x]');
+    if(x) x.onclick = onClose;
+  }
+  if(bind) bind(el);
+}
+function closeSheet(){ $('modal').classList.remove('on'); hud(); }
+
+board.addEventListener('click', e => {
+  const t = e.target.closest('.tile');
+  if(!t || S.busy) return;
+  const id = +t.dataset.id;
+  const idx = S.grid.findIndex(c => c && c.id === id);
+  if(idx < 0) return;
+
+  if(S.bombMode){ useBomb(idx); return; }
+
+  if(S.sel === null){ S.sel = idx; sync(false); return; }
+  if(S.sel === idx){ S.sel = null; sync(false); return; }
+  const ax = S.sel%S.w, ay = (S.sel/S.w)|0, bx = idx%S.w, by = (idx/S.w)|0;
+  if(Math.abs(ax-bx) + Math.abs(ay-by) === 1) trySwap(S.sel, idx);
+  else { S.sel = idx; sync(false); }
+});
+
+// スワイプ操作
+let touchStart = null;
+board.addEventListener('touchstart', e => {
+  const t = e.target.closest('.tile');
+  if(!t || S.busy) return;
+  touchStart = {x:e.touches[0].clientX, y:e.touches[0].clientY, id:+t.dataset.id};
+}, {passive:true});
+board.addEventListener('touchend', e => {
+  if(!touchStart || S.busy) return;
+  const dx = e.changedTouches[0].clientX - touchStart.x;
+  const dy = e.changedTouches[0].clientY - touchStart.y;
+  const th = tileSize() * 0.4;
+  const st = touchStart; touchStart = null;
+  if(Math.max(Math.abs(dx), Math.abs(dy)) < th) return;
+  const idx = S.grid.findIndex(c => c && c.id === st.id);
+  if(idx < 0) return;
+  if(S.bombMode){ useBomb(idx); return; }
+  const x = idx%S.w, y = (idx/S.w)|0;
+  const [nx,ny] = Math.abs(dx) > Math.abs(dy)
+    ? [x + (dx>0?1:-1), y] : [x, y + (dy>0?1:-1)];
+  if(nx<0||ny<0||nx>=S.w||ny>=S.h) return;
+  S.sel = null;
+  trySwap(idx, ny*S.w+nx);
+}, {passive:true});
+
+document.addEventListener('click', e => {
+  const info = e.target.closest('[data-info]');
+  if(!info) return;
+  const [kind, i] = info.dataset.info.split(':');
+  const it = kind === 'item' ? S.items[+i] : S.treasures[+i];
+  if(!it) return;
+  sheet(`<h2>${it.ic} ${it.n}</h2>
+    <div class="sub">${kind === 'item' ? 'アイテム（このステージ限り）' : 'たからもの（永続）'}</div>
+    <div class="doc">${it.d}</div>
+    <div class="row" style="margin-top:14px"><button class="btn primary" data-act="c">閉じる</button></div>`,
+    el => el.querySelector('[data-act="c"]').onclick = closeSheet, closeSheet);
+});
+
+$('btnBomb').onclick = () => {
+  if(S.bombs <= 0 || S.busy) return;
+  S.bombMode = !S.bombMode;
+  board.classList.toggle('bombing', S.bombMode);
+  hud();
+};
+$('multMeter').onclick = () => openBreakdown();
+
+$('btnList').onclick = () => openCatalog();
+
+$('btnOpt').onclick = () => {
+  const draw = () => sheet(`
+    <h2>設定</h2>
+    <h3 class="sec">演出の速さ</h3>
+    ${SPEEDS.map(sp => `
+      <button class="card ${Math.abs(S.spd - sp.v) < 0.001 ? 'on' : ''}" data-spd="${sp.v}">
+        <span class="ic">${sp.v >= 1.6 ? '🐢' : sp.v >= 1.2 ? '🚶' : sp.v >= 0.9 ? '🏃' : '⚡'}</span>
+        <span style="flex:1"><span class="t">${sp.n}</span><div class="d">${sp.d}</div></span>
+        <span class="chk">✓</span>
+      </button>`).join('')}
+    <div class="doc" style="margin-top:6px;font-size:11.5px;color:var(--dim)">
+      タイルの落下、点数の表示、連鎖の間隔がまとめて変わります。ゲームバランスには影響しません。
+    </div>
+    <h3 class="sec">ゲーム</h3>
+    <div class="row"><button class="btn danger" data-act="reset">最初から始める</button></div>
+    <div class="doc" style="margin-top:6px;font-size:11.5px;color:var(--dim)">
+      たからものも含めてすべて失われます。
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn primary" data-act="c">閉じる</button></div>
+  `, el => {
+    el.querySelectorAll('[data-spd]').forEach(b => b.onclick = () => {
+      S.spd = parseFloat(b.dataset.spd); applySpeed(); draw();
+    });
+    el.querySelector('[data-act="reset"]').onclick = () => sheet(
+      `<h2>最初から始める</h2>
+       <div class="sub">ステージ・アイテム・たからものがすべてリセットされます。</div>
+       <div class="row" style="margin-top:12px">
+         <button class="btn danger" data-act="y">やり直す</button>
+         <button class="btn ghost" data-act="n">やめる</button></div>`,
+      e2 => {
+        e2.querySelector('[data-act="y"]').onclick = () => { closeSheet(); newGame(); };
+        e2.querySelector('[data-act="n"]').onclick = draw;
+      }, draw);
+    el.querySelector('[data-act="c"]').onclick = closeSheet;
+  }, closeSheet);
+  draw();
+};
+
+$('btnHelp').onclick = () => {
+  const fx = FRUITS.map(f => `<li>${f.icon} ${f.name} — <b>${f.fx}</b>：${f.fxDesc}</li>`).join('');
+  sheet(`
+    <h2>遊び方</h2>
+    <div class="sub">マッチ3 × ビルド構築</div>
+    <div class="doc">
+      <h3 class="sec">目的</h3>
+      制限ターン以内に目標の収穫量に届かせる。1回の入れ替えが1ターン。連鎖はすべて1ターンに含まれる。
+      <h3 class="sec">収穫量の計算</h3>
+      （フルーツの基礎スコア + 4個消し以降のボーナス）× 連鎖倍率 × <b>スコア倍率</b><br>
+      スコア倍率は掛け算で重なる。負の倍率同士を掛けると正に戻る。
+      <h3 class="sec">フルーツ固有効果（基本 ${Math.round(CONFIG.effectChance*100)}%）</h3>
+      <ul>${fx}</ul>
+      <h3 class="sec">特殊フルーツ</h3>
+      まとめて消した数に応じて、その塊の中心にフルーツが1つ残る。<br>
+      <b>${CONFIG.silverThreshold}個</b>で<b>銀</b>（3×3を消す・スコア ×${CONFIG.silverMult}）、
+      <b>${CONFIG.goldThreshold}個以上</b>で<b>黄金</b>（大きく丸く抉る・スコア ×${CONFIG.goldMult}）。<br>
+      次にそれを消したときに爆発する。爆発に巻き込まれた特殊フルーツは、一拍おいて誘爆する。
+      <h3 class="sec">不思議な種</h3>
+      フルーツを消すと ${Math.round(CONFIG.seedChance*100)}% で出現。1個でストアを引き直せる。
+      ステージクリア時に余った種は<b>爆弾</b>になり、次のステージへ持ち越される。爆弾はターンを消費せず3×3を消す。
+      <h3 class="sec">アイテムとたからもの</h3>
+      アイテムはそのステージ限り。ターン終了ごとに3択で1つ選ぶ。<br>
+      たからものは永続で、3つまで装備できる。
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" data-act="list">📖 図鑑を見る</button>
+      <button class="btn primary" data-act="c">閉じる</button>
+    </div>
+    <div id="log"></div>
+  `, el => {
+    el.querySelector('[data-act="list"]').onclick = () => openCatalog(() => $('btnHelp').onclick());
+    el.querySelector('[data-act="c"]').onclick = closeSheet;
+  }, closeSheet);
+};
+
+// iPhone用オンスクリーンエラーログ（タイトル長押しで表示）
+window.onerror = (m,src,l,c) => {
+  const box = $('log');
+  if(box){ box.style.display = 'block'; box.textContent += `${m} @${l}:${c}\n`; }
+};
+$('stName').addEventListener('click', () => {
+  const box = $('log');
+  if(box) box.style.display = box.style.display === 'block' ? 'none' : 'block';
+});
+
+let rt;
+window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(()=>{ layout(); sync(false); }, 120); });
+document.addEventListener('gesturestart', e => e.preventDefault());
+
+applySpeed();
+newGame();
+</script>
+</body>
+</html>
