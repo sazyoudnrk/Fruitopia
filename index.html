@@ -7,18 +7,20 @@
 <title>フルーツ農園ビルドパズル</title>
 <style>
 /* ============================================================
-   THEME : 夜の農園 / ランタンの灯り
+   THEME : 縁日ポップ / 夜店の灯り
    ============================================================ */
 :root{
-  --ink:#0e1410;          /* 背景（夜の畑） */
-  --crate:#1a231b;        /* パネル（木箱） */
-  --crate2:#243026;
-  --line:#3a4b3c;
-  --lantern:#f5b942;      /* アクセント（ランタン） */
-  --cream:#f2ead8;
-  --dim:#93a493;
-  --bad:#e35b6d;
-  --good:#7fd48a;
+  --ink:#FFF6E9;          /* 背景（縁日の紙色） */
+  --crate:#FFFFFF;        /* パネル（白い提灯紙） */
+  --crate2:#FFEAC8;       /* 少し濃いクリーム（入れ子要素） */
+  --line:#F3D5A0;         /* 境界線（薄い飴色） */
+  --lantern:#FFB84D;      /* アクセント（提灯の金） */
+  --candy:#FF5D6C;        /* アクセント（飴色の赤・主ボタン） */
+  --night:#2E2A5E;        /* 夜空の紺（コントラスト用の濃色） */
+  --cream:#3A2E2E;        /* 主テキスト（温かい濃茶） */
+  --dim:#A3846C;          /* 副テキスト（淡い茶） */
+  --bad:#E8505B;          /* 警告／マイナス（赤） */
+  --good:#4CAF6B;         /* ポジティブ（緑） */
   --ts:40px;              /* タイルサイズ(JS更新) */
   --sp:1.35;              /* 演出速度の倍率(JS更新・大きいほど遅い) */
   --r:14px;
@@ -27,7 +29,7 @@
 html,body{margin:0;height:100%;overscroll-behavior:none}
 body{
   background:
-    radial-gradient(120% 60% at 50% -10%, #1d2a1e 0%, transparent 60%),
+    radial-gradient(120% 60% at 50% -10%, #FFE7C2 0%, transparent 60%),
     var(--ink);
   color:var(--cream);
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
@@ -43,27 +45,28 @@ body{
 }
 
 /* ---------- HUD ---------- */
-.hud{background:var(--crate);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.hud{background:var(--crate);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;
+  box-shadow:0 2px 10px rgba(210,150,80,.14)}
 .hud-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
 .hud-top.tap{cursor:pointer}
 .hud-top.tap:active{opacity:.7}
-.stage-name{font-size:13px;letter-spacing:.08em;color:var(--lantern);font-weight:700}
+.stage-name{font-size:13px;letter-spacing:.08em;color:var(--candy);font-weight:700}
 .stage-no{font-size:11px;color:var(--dim);letter-spacing:.14em}
 .goal{display:flex;align-items:baseline;gap:6px;margin-top:6px}
 .goal b{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .goal span{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
-.bar{height:7px;border-radius:99px;background:#0a0f0b;overflow:hidden;margin-top:6px;border:1px solid #2b382c}
-.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5aa864,var(--lantern));transition:width .4s cubic-bezier(.2,.8,.2,1)}
-.bar.neg i{background:linear-gradient(90deg,#7a2532,var(--bad))}
+.bar{height:7px;border-radius:99px;background:#FFEAC8;overflow:hidden;margin-top:6px;border:1px solid #F3D5A0}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#FFCB6B,var(--lantern));transition:width .4s cubic-bezier(.2,.8,.2,1)}
+.bar.neg i{background:linear-gradient(90deg,#FF9AA4,var(--bad))}
 .pips{display:flex;gap:3px;margin-top:7px;align-items:center}
-.pips i{flex:1;height:4px;border-radius:99px;background:#2b382c}
-.pips i.used{background:#4a5f4c}
-.pips i.store{background:#5c4a1c}
-.pips i.store.used{background:#8a6d24}
-.pips i.late{background:#243a2a}
-.pips i.late.used{background:#3f6049}
-.pips i.now{background:var(--lantern);box-shadow:0 0 6px rgba(245,185,66,.6)}
-.hud-bot{display:flex;gap:6px;margin-top:9px}.chip{flex:1;background:var(--crate2);border-radius:10px;padding:6px 4px;text-align:center;border:1px solid #2f3d31}
+.pips i{flex:1;height:4px;border-radius:99px;background:#FFEAC8}
+.pips i.used{background:#F0C88A}
+.pips i.store{background:#FFD79A}
+.pips i.store.used{background:#FFB84D}
+.pips i.late{background:#E3E9D8}
+.pips i.late.used{background:#B7D9A6}
+.pips i.now{background:var(--candy);box-shadow:0 0 6px rgba(255,93,108,.55)}
+.hud-bot{display:flex;gap:6px;margin-top:9px}.chip{flex:1;background:var(--crate2);border-radius:10px;padding:6px 4px;text-align:center;border:1px solid #F0CB93}
 .chip small{display:block;font-size:9px;color:var(--dim);letter-spacing:.1em}
 .chip b{font-size:16px;font-variant-numeric:tabular-nums}
 .chip.tap{cursor:pointer}
@@ -73,11 +76,11 @@ body{
 /* ---------- 倍率メーター（シグネチャ） ---------- */
 #multMeter{
   position:relative;overflow:hidden;
-  background:linear-gradient(180deg,#2a1f0c,#1a231b);
-  border-color:#5a4718;
+  background:linear-gradient(180deg,#FFE9C0,#FFDCA0);
+  border-color:#F0B860;
 }
-#multMeter b{color:var(--lantern);letter-spacing:-.03em}
-#multMeter.negative{background:linear-gradient(180deg,#2c0f16,#1a231b);border-color:#6b2530}
+#multMeter b{color:#B5730C;letter-spacing:-.03em}
+#multMeter.negative{background:linear-gradient(180deg,#FFE1E3,#FFD0D4);border-color:#F2A0A8}
 #multMeter.negative b{color:var(--bad)}
 #multMeter.negative::after{
   content:"反 転";position:absolute;inset:auto 0 -2px 0;font-size:8px;letter-spacing:.4em;color:var(--bad);opacity:.7
@@ -85,40 +88,46 @@ body{
 
 /* ---------- 盤面 ---------- */
 #boardWrap{display:flex;justify-content:center;align-items:center;flex:0 0 auto}
-#board{position:relative;border-radius:var(--r);background:#0a0f0b;border:1px solid var(--line);
-  box-shadow:inset 0 0 40px #000;overflow:hidden}
+#board{position:relative;border-radius:var(--r);background:#FFE7C2;border:1px solid var(--line);
+  box-shadow:inset 0 0 30px rgba(200,140,70,.18);overflow:hidden}
 .tile{position:absolute;width:var(--ts);height:var(--ts);display:flex;align-items:center;justify-content:center;
   transition:transform calc(.22s * var(--sp)) cubic-bezier(.3,.9,.4,1);will-change:transform}
 .tile .face{
   width:calc(var(--ts) - 6px);height:calc(var(--ts) - 6px);border-radius:var(--fr,11px);
   display:flex;align-items:center;justify-content:center;
   font-size:calc(var(--ts) * .52);line-height:1;
-  background:var(--fc);box-shadow:inset 0 -3px 0 rgba(0,0,0,.28), inset 0 2px 0 rgba(255,255,255,.22);
+  background:var(--fc);box-shadow:inset 0 -3px 0 rgba(0,0,0,.2), inset 0 2px 0 rgba(255,255,255,.35);
   transition:transform .12s, box-shadow .12s;
 }
-.tile .face.bonus{box-shadow:0 0 0 2px #fff, 0 0 12px rgba(255,255,255,.8),
-  inset 0 -3px 0 rgba(0,0,0,.28), inset 0 2px 0 rgba(255,255,255,.22)}
+/* 手描きのドット絵アイコンを使うフルーツも、色付きの角丸背景・形はそのまま残す。
+   絵の外側は透過になっているので、その透過部分から下の色と形がちゃんと見える
+   （形による見分けやすさを保つため）。絵はその上に少し余白を持たせて乗せる。 */
+.tile .face.art img.fruit-tile-img{
+  width:78%; height:78%; object-fit:contain; image-rendering:pixelated; pointer-events:none;
+}
+.tile .face.bonus{box-shadow:0 0 0 2px #fff, 0 0 12px rgba(255,255,255,.9),
+  inset 0 -3px 0 rgba(0,0,0,.2), inset 0 2px 0 rgba(255,255,255,.35)}
 .tile .bn{position:absolute;top:0;right:0;font-size:calc(var(--ts) * .3);line-height:1;
-  pointer-events:none;text-shadow:0 1px 3px #000}
+  pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.5)}
 .tile .face.silver{
-  background:linear-gradient(150deg,#ffffff 0%,#cfd8dd 38%,#8e9aa2 62%,#eef3f6 100%);
-  box-shadow:0 0 0 2px #eef3f6, 0 0 9px rgba(207,216,221,.6),
-             inset 0 -3px 0 rgba(60,70,78,.32), inset 0 2px 0 rgba(255,255,255,.55);
+  background:linear-gradient(150deg,#ffffff 0%,#dbe2e6 38%,#a7b0b6 62%,#f3f6f8 100%);
+  box-shadow:0 0 0 2px #f3f6f8, 0 0 9px rgba(160,175,182,.55),
+             inset 0 -3px 0 rgba(60,70,78,.28), inset 0 2px 0 rgba(255,255,255,.6);
 }
 .tile .face.black{
-  background:radial-gradient(circle at 50% 42%, #2a1840 0%, #150b22 55%, #06030c 100%);
-  box-shadow:0 0 0 2px #7a5cc4, 0 0 16px rgba(150,110,240,.8),
-             inset 0 0 14px rgba(0,0,0,.9);
-  color:#c6a2ff;
+  background:radial-gradient(circle at 50% 42%, #3a2860 0%, #1f1233 55%, #0a0616 100%);
+  box-shadow:0 0 0 2px #9a7cde, 0 0 16px rgba(150,110,240,.7),
+             inset 0 0 14px rgba(0,0,0,.85);
+  color:#dcc4ff;
   animation:void calc(2.6s * var(--sp)) ease-in-out infinite;
 }
-@keyframes void{0%,100%{box-shadow:0 0 0 2px #6a4cb4, 0 0 10px rgba(150,110,240,.55), inset 0 0 14px rgba(0,0,0,.9)}
-  50%{box-shadow:0 0 0 2px #a98cff, 0 0 24px rgba(180,140,255,.95), inset 0 0 14px rgba(0,0,0,.9)}}
+@keyframes void{0%,100%{box-shadow:0 0 0 2px #8a6cce, 0 0 10px rgba(150,110,240,.5), inset 0 0 14px rgba(0,0,0,.85)}
+  50%{box-shadow:0 0 0 2px #b89cff, 0 0 24px rgba(180,140,255,.9), inset 0 0 14px rgba(0,0,0,.85)}}
 .tile .face.rainbow{
   background:linear-gradient(135deg,#ff7ab8,#ffd166,#8ce99a,#74c0fc,#b197fc,#ff7ab8);
   background-size:280% 280%;
   box-shadow:0 0 0 2px #fff, 0 0 14px rgba(168,240,255,.85),
-             inset 0 -3px 0 rgba(0,0,0,.2), inset 0 2px 0 rgba(255,255,255,.5);
+             inset 0 -3px 0 rgba(0,0,0,.15), inset 0 2px 0 rgba(255,255,255,.6);
   animation:rain calc(3.2s * var(--sp)) linear infinite;
 }
 @keyframes rain{0%{background-position:0% 50%}100%{background-position:280% 50%}}
@@ -127,26 +136,26 @@ body{
   100%{transform:scale(1) rotate(0);filter:brightness(1)}}
 .tile .face.gold{
   background:linear-gradient(150deg,#fff3c4 0%,#f5c542 38%,#c98a12 62%,#ffe9a8 100%);
-  box-shadow:0 0 0 2px #ffe9a8, 0 0 12px rgba(245,197,66,.75),
-             inset 0 -3px 0 rgba(120,80,0,.35), inset 0 2px 0 rgba(255,255,255,.5);
+  box-shadow:0 0 0 2px #ffe9a8, 0 0 12px rgba(245,197,66,.7),
+             inset 0 -3px 0 rgba(120,80,0,.3), inset 0 2px 0 rgba(255,255,255,.55);
   animation:shine calc(2.4s * var(--sp)) linear infinite;
 }
 @keyframes shine{0%,100%{filter:brightness(1)}50%{filter:brightness(1.22)}}
 .tile .face.charge{animation:charge calc(.16s * var(--sp)) ease-in-out infinite alternate;
   box-shadow:0 0 0 3px #fff6d0, 0 0 22px rgba(255,223,107,.95)}
 @keyframes charge{from{transform:scale(1)}to{transform:scale(1.16)}}
-.tile.sel .face{transform:scale(.86);box-shadow:0 0 0 3px var(--lantern), inset 0 -3px 0 rgba(0,0,0,.28)}
+.tile.sel .face{transform:scale(.86);box-shadow:0 0 0 3px var(--candy), inset 0 -3px 0 rgba(0,0,0,.2)}
 .tile.pop{transition:transform calc(.2s * var(--sp)), opacity calc(.2s * var(--sp))}
 .tile.pop .face{animation:pop calc(.26s * var(--sp)) forwards}
 @keyframes pop{60%{transform:scale(1.25)}100%{transform:scale(0);opacity:0}}
 .tile.bad .face{filter:saturate(.3)}
 #board.shake{animation:shk .22s}
 @keyframes shk{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
-#board.bombing{box-shadow:inset 0 0 0 2px var(--bad), inset 0 0 40px #300}
+#board.bombing{box-shadow:inset 0 0 0 2px var(--bad), inset 0 0 40px rgba(232,80,91,.2)}
 
 /* 浮き上がるスコア */
 .float{position:absolute;pointer-events:none;font-weight:800;font-size:15px;
-  text-shadow:0 2px 6px #000,0 0 3px #000;animation:fl calc(1s * var(--sp)) ease-out forwards;z-index:5;
+  text-shadow:0 2px 6px rgba(45,24,8,.55),0 0 3px rgba(45,24,8,.55);animation:fl calc(1s * var(--sp)) ease-out forwards;z-index:5;
   font-variant-numeric:tabular-nums;white-space:nowrap}
 .float.mini{font-size:calc(var(--ts) * .34);color:#fff;animation:flm calc(.9s * var(--sp)) ease-out forwards}
 .float.grp{font-size:calc(var(--ts) * .46);letter-spacing:-.02em;animation:flg calc(1.1s * var(--sp)) ease-out forwards;z-index:6}
@@ -160,71 +169,74 @@ body{
 @keyframes fl{0%{opacity:0;transform:translateY(6px) scale(.8)}20%{opacity:1;transform:translateY(0) scale(1)}
   100%{opacity:0;transform:translateY(-38px) scale(1)}}
 #announce{position:absolute;left:0;right:0;top:44%;text-align:center;font-size:30px;font-weight:800;
-  letter-spacing:.02em;pointer-events:none;opacity:0;z-index:7;text-shadow:0 3px 16px #000,0 0 6px #000}
+  letter-spacing:.02em;pointer-events:none;opacity:0;z-index:7;text-shadow:0 2px 8px rgba(45,24,8,.55),0 0 4px rgba(45,24,8,.5)}
 #announce.show{animation:anc calc(1.7s * var(--sp)) cubic-bezier(.2,.9,.3,1) forwards}
 @keyframes anc{0%{opacity:0;transform:scale(.72)}
   14%{opacity:1;transform:scale(1.06)}26%{transform:scale(1)}
   72%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.04)}}
 #turnScore{position:absolute;left:0;right:0;top:38%;text-align:center;font-size:38px;font-weight:800;
-  pointer-events:none;opacity:0;z-index:6;text-shadow:0 3px 14px #000;font-variant-numeric:tabular-nums}
+  pointer-events:none;opacity:0;z-index:6;text-shadow:0 2px 8px rgba(45,24,8,.55),0 0 4px rgba(45,24,8,.5);font-variant-numeric:tabular-nums}
 #turnScore.show{animation:ts calc(1.2s * var(--sp)) cubic-bezier(.2,.9,.3,1) forwards}
 @keyframes ts{0%{opacity:0;transform:scale(.5)}25%{opacity:1;transform:scale(1.08)}70%{opacity:1;transform:scale(1)}
   100%{opacity:0;transform:scale(1) translateY(-24px)}}
 
 /* ---------- トレイ ---------- */
-.tray{background:var(--crate);border:1px solid var(--line);border-radius:var(--r);padding:8px}
+.tray{background:var(--crate);border:1px solid var(--line);border-radius:var(--r);padding:8px;
+  box-shadow:0 2px 10px rgba(210,150,80,.1)}
 .tray-h{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--dim);
   letter-spacing:.16em;margin-bottom:6px}
 .slots{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
 .slot{position:relative;flex:0 0 auto;width:52px;height:52px;border-radius:11px;background:var(--crate2);
-  border:1px dashed #33422f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
-.slot.filled{border:1px solid var(--line);border-style:solid;background:linear-gradient(180deg,#2b382c,#212c22)}
-.slot.filled.neg{border-color:#6b2530;background:linear-gradient(180deg,#2f1a20,#241318)}
-.slot.filled.tre{border-color:#6a5520;background:linear-gradient(180deg,#332a12,#241f10)}
+  border:1px dashed #E8C48C;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.slot.filled{border:1px solid var(--line);border-style:solid;background:linear-gradient(180deg,#FFF6E8,#FFECCB)}
+.slot.filled.neg{border-color:#F2A0A8;background:linear-gradient(180deg,#FFEBEC,#FFDBDE)}
+.slot.filled.tre{border-color:#F0C060;background:linear-gradient(180deg,#FFF2D4,#FFE7B0)}
 .slot .ic{font-size:21px;line-height:1}
 .slot .nm{font-size:7.5px;color:var(--dim);text-align:center;line-height:1.1;padding:0 2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.slot.locked{opacity:.3}
-.slot .cnt{position:absolute;top:2px;right:3px;font-size:8px;font-weight:800;color:var(--ink);
+.slot.locked{opacity:.35}
+.slot .cnt{position:absolute;top:2px;right:3px;font-size:8px;font-weight:800;color:#3A2205;
   background:var(--lantern);border-radius:99px;padding:0 4px;line-height:12px;font-variant-numeric:tabular-nums}
-.slot .cnt.zero{background:#44553f;color:var(--dim)}
-.slot .cnt.exp{background:#8fd4ff;color:#0b1a22}
+.slot .cnt.zero{background:#EBDCC4;color:var(--dim)}
+.slot .cnt.exp{background:#7ecbea;color:#0b1a22}
 
 /* ---------- ボタン ---------- */
 .btn{appearance:none;border:1px solid var(--line);background:var(--crate2);color:var(--cream);
   border-radius:11px;padding:11px 14px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;
   letter-spacing:.04em}
 .btn:active{transform:translateY(1px)}
-.btn.primary{background:linear-gradient(180deg,#f5b942,#d3921f);color:#241a05;border-color:#f5b942}
+.btn.primary{background:linear-gradient(180deg,#FF7A87,#FF4457);color:#fff;border-color:#FF4457;
+  box-shadow:0 2px 6px rgba(255,93,108,.35)}
 .btn.ghost{background:transparent;color:var(--dim)}
-.btn.danger{background:linear-gradient(180deg,#e35b6d,#b03a4b);border-color:#e35b6d;color:#2a0d12}
-.btn[disabled]{opacity:.35;pointer-events:none}
+.btn.danger{background:linear-gradient(180deg,#FF7A87,#D9384C);border-color:#FF4457;color:#fff}
+.btn[disabled]{opacity:.4;pointer-events:none}
 .footbar{display:flex;gap:6px}
 .footbar .btn{flex:1;padding:9px 6px;font-size:12px}
 .footbar .btn.icon{flex:0 0 42px;font-size:16px;padding:9px 0}
-.card.on{border-color:var(--lantern);background:linear-gradient(180deg,#33290f,#242c22)}
-.card .chk{margin-left:auto;color:var(--lantern);font-size:16px;opacity:0}
+.card.on{border-color:var(--lantern);background:linear-gradient(180deg,#FFF1D2,#FFE9C8)}
+.card .chk{margin-left:auto;color:var(--candy);font-size:16px;opacity:0}
 .card.on .chk{opacity:1}
 
 /* ---------- モーダル ---------- */
-#modal{position:fixed;inset:0;background:rgba(4,8,5,.82);backdrop-filter:blur(6px);z-index:50;
+#modal{position:fixed;inset:0;background:rgba(60,38,18,.55);backdrop-filter:blur(4px);z-index:50;
   display:none;align-items:flex-end;justify-content:center;padding:12px}
 #modal.on{display:flex}
 .sheet{width:100%;max-width:500px;max-height:92vh;overflow-y:auto;background:var(--crate);
   border:1px solid var(--line);border-radius:20px;padding:16px;position:relative;
-  padding-bottom:calc(16px + env(safe-area-inset-bottom));animation:up .28s cubic-bezier(.2,.9,.3,1)}
+  padding-bottom:calc(16px + env(safe-area-inset-bottom));animation:up .28s cubic-bezier(.2,.9,.3,1);
+  box-shadow:0 -4px 24px rgba(120,70,20,.2)}
 @keyframes up{from{transform:translateY(30px);opacity:0}}
 .sheetx{position:sticky;float:right;top:0;z-index:9;width:34px;height:34px;margin:-4px -4px 0 0;
   border-radius:50%;border:1px solid var(--line);background:var(--crate2);color:var(--dim);
   font-size:15px;line-height:1;cursor:pointer;font-family:inherit;padding:0}
-.sheetx:active{color:var(--cream);border-color:var(--lantern);transform:scale(.94)}
+.sheetx:active{color:var(--cream);border-color:var(--candy);transform:scale(.94)}
 .sheet h2{margin:0 0 2px;font-size:19px;letter-spacing:.04em;padding-right:34px}
 .sheet .sub{color:var(--dim);font-size:12px;margin-bottom:12px}
 .card{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:11px;border-radius:13px;
   background:var(--crate2);border:1px solid var(--line);margin-bottom:8px;color:var(--cream);font-family:inherit;cursor:pointer}
-.card:active{border-color:var(--lantern)}
-.card.neg{border-color:#5d222c;background:linear-gradient(180deg,#2c161b,#221319)}
-.card.tre{border-color:#6a5520;background:linear-gradient(180deg,#332a12,#241f10)}
+.card:active{border-color:var(--candy)}
+.card.neg{border-color:#F2A0A8;background:linear-gradient(180deg,#FFECED,#FFDEE1)}
+.card.tre{border-color:#F0C060;background:linear-gradient(180deg,#FFF2D4,#FFE7B0)}
 .card .ic{font-size:27px;flex:0 0 auto;width:36px;text-align:center}
 .card .t{font-size:14px;font-weight:700}
 .card .d{font-size:11.5px;color:var(--dim);line-height:1.45}
@@ -232,67 +244,67 @@ body{
   border:1px solid var(--line);color:var(--dim);margin-left:6px;vertical-align:1px}
 .row{display:flex;gap:8px;margin-top:4px}
 .seedbar{display:flex;align-items:center;gap:8px;margin:10px 0 6px;padding:8px 11px;border-radius:11px;
-  background:linear-gradient(180deg,#22301f,#1b241c);border:1px solid #3c5238}
+  background:linear-gradient(180deg,#E9F7E0,#DCF0D0);border:1px solid #AEDC9C}
 .seedbar .lbl{font-size:12px;color:var(--cream)}
-.seedbar .num{font-size:17px;font-weight:800;color:var(--lantern);font-variant-numeric:tabular-nums}
+.seedbar .num{font-size:17px;font-weight:800;color:#4C9A55;font-variant-numeric:tabular-nums}
 .seedbar .cost{margin-left:auto;font-size:10.5px;color:var(--dim)}
 /* ステージマップ：直線に丸を並べただけの簡易表示。絵ができたら差し替える前提。 */
 .map{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:14px 4px 6px;
-  border:1px solid var(--line);border-radius:14px;background:#161e17}
+  border:1px solid var(--line);border-radius:14px;background:#FFF3DE}
 .maptrack{display:flex;align-items:flex-start;min-width:max-content;padding:0 10px}
 .mapnode{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;width:66px;
   background:none;border:none;padding:0;font-family:inherit;cursor:pointer}
-.mapdot{width:36px;height:36px;border-radius:50%;border:2px solid #3a4b3c;background:#1a231b;
+.mapdot{width:36px;height:36px;border-radius:50%;border:2px solid #F0D5A0;background:#FFFFFF;
   display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--dim);
   transition:transform .15s}
-.mapdot.done{background:linear-gradient(180deg,#f5b942,#d3921f);border-color:#ffd97a;color:#241a05}
-.mapdot.now{border-color:var(--lantern);color:var(--lantern);box-shadow:0 0 14px rgba(245,185,66,.55)}
+.mapdot.done{background:linear-gradient(180deg,#FFC868,#E89A1E);border-color:#FFDCA0;color:#3A2205}
+.mapdot.now{border-color:var(--candy);color:var(--candy);box-shadow:0 0 14px rgba(255,93,108,.4)}
 .mapdot.sel{transform:scale(1.18);outline:2px solid var(--cream);outline-offset:3px}
-.mapnode.lock .mapdot{opacity:.32}
+.mapnode.lock .mapdot{opacity:.35}
 .mapname{font-size:8.5px;color:var(--dim);text-align:center;line-height:1.25;height:24px;overflow:hidden;
   padding:0 2px}
-.mapnode.done .mapname{color:#9fc09a}
-.mapnode.now .mapname{color:var(--lantern)}
-.mapline{flex:0 0 auto;width:24px;height:3px;border-radius:99px;background:#33422f;margin-top:17px}
+.mapnode.done .mapname{color:#B5730C}
+.mapnode.now .mapname{color:var(--candy)}
+.mapline{flex:0 0 auto;width:24px;height:3px;border-radius:99px;background:#F0D9AC;margin-top:17px}
 .mapline.done{background:var(--lantern)}
 .mapinfo{margin-top:10px;padding:11px;border-radius:12px;background:var(--crate2);border:1px solid var(--line)}
 .mapinfo .t{font-size:15px;font-weight:700}
 .mapinfo .d{font-size:11.5px;color:var(--dim);margin-top:3px}
 textarea.save{width:100%;height:88px;margin-top:6px;padding:9px;border-radius:11px;resize:vertical;
-  background:#0d130e;border:1px solid var(--line);color:var(--cream);
+  background:#FFFCF4;border:1px solid var(--line);color:var(--cream);
   font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.45;
   -webkit-user-select:text;user-select:text}
-textarea.save:focus{outline:none;border-color:var(--lantern)}
+textarea.save:focus{outline:none;border-color:var(--candy)}
 .own{max-height:172px;overflow-y:auto;border:1px solid var(--line);border-radius:11px;
-  background:#161e17;padding:2px 8px;-webkit-overflow-scrolling:touch}
-.ownrow{display:flex;align-items:baseline;gap:7px;padding:6px 0;border-bottom:1px solid #253024}
+  background:#FFF7E7;padding:2px 8px;-webkit-overflow-scrolling:touch}
+.ownrow{display:flex;align-items:baseline;gap:7px;padding:6px 0;border-bottom:1px solid #F3E0BE}
 .ownrow:last-child{border-bottom:none}
 .ownrow .ic{font-size:15px;flex:0 0 auto}
 .ownrow .t{font-size:11.5px;font-weight:700;flex:0 0 auto;white-space:nowrap}
 .ownrow .d{font-size:10.5px;color:var(--dim);line-height:1.35}
-.ownrow .lv{margin-left:auto;font-size:9px;font-weight:800;color:var(--ink);background:var(--lantern);
+.ownrow .lv{margin-left:auto;font-size:9px;font-weight:800;color:#3A2205;background:var(--lantern);
   border-radius:99px;padding:0 5px;flex:0 0 auto}
-.ownrow.neg .t{color:#f19aa6}
-.ownrow.tre .t{color:var(--lantern)}
+.ownrow.neg .t{color:#D9384C}
+.ownrow.tre .t{color:#B5730C}
 .row .btn{flex:1}
 .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
-.tbl td{padding:6px 3px;border-bottom:1px solid #2b382c;color:#c8d3c4;vertical-align:middle}
+.tbl td{padding:6px 3px;border-bottom:1px solid #F3E0BE;color:#6B5540;vertical-align:middle}
 .tbl td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--cream);white-space:nowrap}
 .tbl td.ic{width:26px;font-size:17px;text-align:center;padding-right:6px}
 .tbl .mute td{color:var(--dim)}
 .tbl .neg td:last-child{color:var(--bad)}
 .tbl .tot td{border-bottom:none;border-top:1px solid var(--line);padding-top:9px}
-.tbl .tot td:last-child{color:var(--lantern);font-size:17px}
+.tbl .tot td:last-child{color:#B5730C;font-size:17px}
 .tbl .tot.neg td:last-child{color:var(--bad)}
 h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;font-weight:700}
-.doc{font-size:12.5px;color:#c8d3c4;line-height:1.7}
-.doc b{color:var(--lantern)}
+.doc{font-size:12.5px;color:#6B5540;line-height:1.7}
+.doc b{color:#B5730C}
 .doc ul{padding-left:1.1em;margin:6px 0}
-#log{font-family:ui-monospace,monospace;font-size:10px;color:#d88;white-space:pre-wrap;
-  max-height:120px;overflow:auto;background:#0a0f0b;border-radius:8px;padding:6px;margin-top:8px;display:none}
+#log{font-family:ui-monospace,monospace;font-size:10px;color:#C0392B;white-space:pre-wrap;
+  max-height:120px;overflow:auto;background:#FFF3E0;border-radius:8px;padding:6px;margin-top:8px;display:none}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));
   background:var(--crate2);border:1px solid var(--lantern);color:var(--cream);padding:9px 16px;border-radius:99px;
-  font-size:13px;z-index:80;animation:tt 1.8s forwards;pointer-events:none}
+  font-size:13px;z-index:80;animation:tt 1.8s forwards;pointer-events:none;box-shadow:0 4px 14px rgba(120,70,20,.2)}
 @keyframes tt{0%{opacity:0;transform:translate(-50%,10px)}12%{opacity:1;transform:translate(-50%,0)}
   80%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
@@ -351,8 +363,21 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
    ゲーム内では ⚙ 設定の先頭に表示される。
    ========================================================================= */
-const VERSION = '0.33';
+const VERSION = '0.46';
 const CHANGELOG = [
+  ['0.46', '連鎖が長引いたときの演出圧縮を調整。0msまでカットせず、消える瞬間は必ず一瞬でも見えるように'],
+  ['0.45', 'フルーツのドット絵表示を一旦オフに（CONFIG.useFruitArtで切り替え可能。絵データは保持したまま）'],
+  ['0.44', '見た目を「縁日ポップ」テーマに一新（暗い夜のテーマから、明るい紙色＋飴色赤・金のポップな配色へ）'],
+  ['0.43', 'りんご・ぶどう・いちごのドット絵を新しいバージョンに差し替え'],
+  ['0.42', 'ドット絵アイコンでも、フルーツごとの色付き背景・形を復活（絵の透過部分から下の形が見えるように）'],
+  ['0.41', 'りんご・ぶどう・いちごを手描きのドット絵アイコンに差し替え（オレンジ・バナナ・メロンは絵文字のまま。今後順次差し替え予定）'],
+  ['0.40', '銀フルーツの誤発動を修正／連鎖マークを線形成長に／スキップで種取得／即発アイテムを種3個の専用交換に／クリア演出＋余りターン・アイテムのポイント換算／たからもの強化を重複時のみに限定／果樹園の地図を非レベルのたからものへ／S1-5目標をさらに2倍・S1試験的に6000／地力の基準をステージ進行で指数的に'],
+  ['0.39', 'S6〜S8の目標収穫量も3倍に（S1〜5と揃えた）'],
+  ['0.38', '倍率の整数丸めを撤回（内部は小数のまま）。代わりに1個ずつのスコア表示で小数点が出ないよう修正'],
+  ['0.37', 'スコア倍率・連鎖倍率・特殊フルーツ倍率・爆弾倍率を、実際の得点計算の直前に整数へ四捨五入するように統一（0.38で撤回）'],
+  ['0.36', 'S1〜S5の目標収穫量を3倍に（易しすぎたため）'],
+  ['0.35', '虹×虹は黒と同じく盤面を全消去に／アイテム重ね上限を3に／掛け算系アイテム(にせもの・豊穣の祈り・起爆装置・新月の契約)がレベルで指数暴走しないよう修正／連鎖の実時間を圧縮する安全弁を追加'],
+  ['0.34', 'アイテムの持ち越しを既定で自動選択に（2個以下は全部、3個以上は上位2個が選択済み。あとから選び直せる）'],
   ['0.33', '連鎖のマークは、付いていたフルーツ自身の倍率を上げるように変更（りんごに付いていればりんごが強くなる）'],
   ['0.32', '取りこぼしていたパーセント表記を修正（鏡の農具ほか）'],
   ['0.31', '連鎖のマーク（🔗）を追加。連鎖のたびに固有倍率が10%ずつ育ち、消すと基本倍率になる／序盤ステージのターン数を短縮'],
@@ -393,6 +418,9 @@ const CONFIG = {
   chainGrowth:    1.6,   // geometric時：1連鎖ごとに何倍になるか
   baseChain:      0.5,   // linear時：1連鎖ごとの加算量
   chainCap:       0,     // 連鎖倍率の上限（0 で無制限）
+  maxMiniFloats:  10,    // 1グループにつき、1個ずつのスコア表示を作る上限
+                          // （出現率が極端に偏ると30個超の塊ができ、DOM生成が
+                          //   膨大になって実機で重くなるため。スコア計算自体には影響しない）
   sizeBonus:      15,    // 4個消し以降、1個あたりの追加スコア
   effectChance:   0.12,  // フルーツ固有効果の基本発生率
   seedChance:     0.05,  // 不思議な種の出現率（仕様書 §9.1）
@@ -400,6 +428,10 @@ const CONFIG = {
   roundSeeds:     3,     // ラウンド開始時に配られる種（ステージごとにリセット）
   bombCost:       1,     // 爆弾1回に使う種の数
   treasureReroll: 5,     // たからものの引き直しに必要な種（1回ごとに +1）
+  skipSeedReward: 2,     // ストアで「取らずに次へ」を選んだときに貰える種
+  instantItemCost:3,     // 枠を取らない即発アイテム(once)を種と交換するコスト
+  turnBonusRatio: 0.5,   // 残りターン1つあたりのボーナス＝「そのステージの平均1ターン分」の何割か
+  itemBonusPerLv: 300,   // 持ち越されず消えるアイテム1レベルあたりのボーナス点
   invertGain:     1.5,   // 反転の実：マイナスの収穫をプラスに直すときの倍率
   startSlots:     5,     // 初期アイテム枠（§6.2）
   storeInterval:  3,     // 何ターンごとにストアを開くか
@@ -411,14 +443,17 @@ const CONFIG = {
   // --- 連鎖のマーク ---
   markChainStart: 3,     // このターン内で何連鎖に達したらマークが付き始めるか
   markBase:       0.1,   // 生まれたマークの固有倍率
-  markGrowth:     1.1,   // 連鎖が起きるたび、固有倍率が現在値の何倍になるか
+  markStep:       0.05,  // 連鎖が起きるたびに固有倍率へ加算される量（線形）
   maxSlots:       10,    // 最大アイテム枠
   slotGain:       1,     // ステージクリアごとの枠増加
   treasureSlots:  3,     // たからもの枠（§10.3）
   treasureMaxLv:  5,     // たからものの最大レベル（重ねて強化できる上限）
-  itemMaxLv:      5,     // アイテムの最大レベル（同じものを取ると重なる）
+  itemMaxLv:      3,     // アイテムの最大レベル（同じものを取ると重なる）
   storeGrowth:    3,     // 何ステージごとにストアの候補が1個増えるか
-  soilBase:       2000,  // 地力Lv1に必要な累計収穫量
+  soilBase:       6000,  // 地力Lv1に必要な累計収穫量（ステージ1クリア時点を基準に合わせた値）
+  soilStageGrowth:1.6,   // maxStageが1進むごとに、地力の基準ラインが何倍厳しくなるか
+  useFruitArt:    false, // trueにすると、絵が用意されているフルーツ(FRUITS[].img)を
+                          // ドット絵で表示する。falseなら絵文字。絵データ自体は消さない。
   soilGain:       6,     // 地力1レベルあたりの基礎スコア上昇
   storeSize:      3,     // ストア提示数（§6.3）
   multFloor:      0.05,  // 倍率0の破壊力を抑えるガード（§8.1）
@@ -456,18 +491,30 @@ const DEFAULT_SPEED = 'slow';
    shape は色に頼らず見分けるためのシルエット。色覚特性の差にも効く。 */
 const FRUITS = [
   { id:'apple',  name:'りんご',   icon:'🍎', color:'#d6392f', shape:'50%', base:10,
-    fx:'力の実',   fxDesc:'追加スコア +45' },
+    fx:'力の実',   fxDesc:'追加スコア +45',
+    img:'data:image/png;base64,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' },
   { id:'orange', name:'オレンジ', icon:'🍊', color:'#f07c18', shape:'26%', base:10,
     fx:'種袋',     fxDesc:'不思議な種 +1' },
   { id:'banana', name:'バナナ',   icon:'🍌', color:'#edd23f', shape:'52% 14% 52% 14%', base:10,
     fx:'皮すべり', fxDesc:'十字方向を追加消去' },
   { id:'grape',  name:'ぶどう',   icon:'🍇', color:'#4a63c9', shape:'12%', base:10,
-    fx:'醸造',     fxDesc:'このターンのスコア倍率の上昇量 +0.2' },
+    fx:'醸造',     fxDesc:'このターンのスコア倍率の上昇量 +0.2',
+    img:'data:image/png;base64,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' },
   { id:'straw',  name:'いちご',   icon:'🍓', color:'#e0489f', shape:'48% 48% 44% 44% / 42% 42% 62% 62%', base:10,
-    fx:'甘み',     fxDesc:'そのグループのスコア倍率 ×1.6' },
+    fx:'甘み',     fxDesc:'そのグループのスコア倍率 ×1.6',
+    img:'data:image/png;base64,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' },
   { id:'melon',  name:'メロン',   icon:'🍈', color:'#3f9e5c', shape:'32% 68% 32% 68% / 68% 32% 68% 32%', base:12,
     fx:'重量',     fxDesc:'基礎スコア分をもう一度加算' }
 ];
+// フルーツアイコンのHTMLを返す（設定がONかつimgがあれば画像、それ以外は絵文字テキスト）。
+// innerHTMLで使うところ専用。textContentで使う場所（floatText等）では使わない。
+function fruitIconHTML(id, sizeCss){
+  const f = F[id];
+  return (CONFIG.useFruitArt && f.img)
+    ? `<img src="${f.img}" style="width:${sizeCss||'1.15em'};height:${sizeCss||'1.15em'};
+        vertical-align:-.28em;image-rendering:pixelated">`
+    : f.icon;
+}
 const F = {}; FRUITS.forEach(f => F[f.id] = f);
 
 /* ---------------- アイテム（§7） ----------------
@@ -527,8 +574,8 @@ const ITEMS = [
     apply:c=>{c.chanceAdd+=0.25;c.baseAdd-=4}},
   {id:'seedbag',n:'幸運の種袋',  ic:'👝', tag:'確率', d:'種の出現率 +5%',
     apply:c=>c.seedAdd+=0.05},
-  {id:'pray',  n:'豊穣の祈り',   ic:'🙏', tag:'確率', d:'種の出現率が2倍',
-    apply:c=>c.seedMul*=2},
+  {id:'pray',  n:'豊穣の祈り',   ic:'🙏', tag:'確率', d:'種の出現率が2倍（レベルごとに+1倍）',
+    apply:(c,s,it,once)=>once('pray', ()=>{ c.seedMul *= 1 + LV(it); })},
   // --- 即発（期限つき・使い切り）。フルーツに属性を貼り付ける ---
   {id:'hourglass', n:'砂時計の苗', ic:'⏳', tag:'即発', expire:6,
     d:`6ターンのあいだ、フルーツに⏳が付いて出る（出現率 ${Math.round(CONFIG.bonusChance*100)}%）。消すと制限ターン +${CONFIG.turnFruitGain}`,
@@ -559,8 +606,8 @@ const ITEMS = [
     apply:(c,s2)=>c.mults.push(Math.pow(1.06, s2.seeds))},
 
   // --- 種と爆弾（種はそのまま爆弾として使える） ---
-  {id:'detonator',n:'起爆装置',   ic:'🎛️', tag:'特殊', d:'爆弾で消したフルーツのスコア倍率 ×2.5',
-    apply:c=>c.bombMult*=2.5},
+  {id:'detonator',n:'起爆装置',   ic:'🎛️', tag:'特殊', d:'爆弾で消したフルーツのスコア倍率 ×2.5（レベルごとに+1.5）',
+    apply:(c,s,it,once)=>once('detonator', ()=>{ c.bombMult *= 1 + 1.5*LV(it); })},
 
   // --- フルーツ固有効果系（§7.3） ---
   {id:'apolish',n:'りんご磨き',  ic:'🍎', tag:'果実', d:'りんごのスコア +25',
@@ -577,8 +624,6 @@ const ITEMS = [
     apply:c=>{c.fruitScore.straw=(c.fruitScore.straw||0)+12;c.fruitChance.straw=(c.fruitChance.straw||0)+0.12}},
   {id:'crate', n:'メロン用木箱', ic:'📦', tag:'果実', need:'melon', d:'メロンのスコア +30',
     apply:c=>c.fruitScore.melon=(c.fruitScore.melon||0)+30},
-  {id:'map',   n:'果樹園の地図', ic:'🗺️', tag:'特殊', unique:true, d:'盤面のフルーツ種類 -1（揃いやすくなる）',
-    apply:c=>c.typeCut+=1},
   {id:'goldmold',n:'黄金の型',   ic:'🥇', tag:'特殊', unique:true, d:'4個そろえるだけで黄金のフルーツが生まれる',
     apply:c=>c.goldCut+=1},
   {id:'goldvein',n:'金鉱脈',     ic:'⛏️', tag:'特殊', d:'黄金のフルーツの爆発範囲 +1',
@@ -593,8 +638,8 @@ const ITEMS = [
     apply:c=>c.rainbowMultAdd+=1.5},
   {id:'palette', n:'虹の絵の具',   ic:'🎨', tag:'特殊', d:'虹色が塗り替えるマス数 +6（10 → 16）',
     apply:c=>c.rainbowConvAdd+=6},
-  {id:'newmoon', n:'新月の契約',   ic:'🌑', tag:'特殊', d:'黒いフルーツの出現率が3倍',
-    apply:c=>c.blackChanceMul*=3},
+  {id:'newmoon', n:'新月の契約',   ic:'🌑', tag:'特殊', d:'黒いフルーツの出現率が3倍（レベルごとに+2倍）',
+    apply:(c,s,it,once)=>once('newmoon', ()=>{ c.blackChanceMul *= 1 + 2*LV(it); })},
   {id:'blackfuse',n:'導火線',      ic:'🧨', tag:'特殊', d:'黒いフルーツが爆弾や他の爆発でも起爆するようになる',
     apply:c=>c.blackFuse=true},
   {id:'abyssvessel',n:'深淵の器',  ic:'🫙', tag:'特殊', d:'黒の爆発倍率の上昇量 +4（×5 → ×9）',
@@ -641,7 +686,7 @@ const ITEMS = [
       S.grid[i].sp = 'silver'; sync(false);
       announce('銀の実がなった', SP.silver.col);
       floatText(i, '銀', SP.silver.col, {cls:'fx', dy:0.58});
-      await sleep(T(520));
+      await sleep(paced(T(520)));
       return 0;
     }},
   {id:'alchemyfurnace', n:'錬金炉', ic:'⚗️', tag:'累積', track:'sp:silver', every:5, unit:'個', reset:true,
@@ -655,7 +700,7 @@ const ITEMS = [
       S.grid[i].sp = 'gold'; sync(false);
       announce('銀が金に変わった', SP.gold.col);
       floatText(i, '黄金', SP.gold.col, {cls:'fx', dy:0.58});
-      await sleep(T(520));
+      await sleep(paced(T(520)));
       return 0;
     }},
 
@@ -693,7 +738,7 @@ const ITEMS = [
         v += val;
         floatText(i, '+' + Math.round(val), F.grape.color, {cls:'mini', delay:T(Math.min(k++,10)*22)});
       }
-      await sleep(T(420));
+      await sleep(paced(T(420)));
       await clearCells(new Set(cells));
       await gravity();
       return v;
@@ -701,7 +746,10 @@ const ITEMS = [
 ];
 
 /* にせものシリーズ：全フルーツぶんを自動生成する。
-   出現率は一律2倍（たからもの「品種台帳」で上がる）。
+   出現率は一律2倍（レベルごとに+1倍。品種台帳でさらに上がる）。
+   Lv3まで重ねられるため、指数的に増やすと盤面がほぼ単色になり、
+   巨大な連鎖が延々と続いて実時間の待ちが膨れ上がる（過去に実際に起きた不具合）。
+   そのため掛け算は once() で一度だけ、レベルに対して線形に効かせる。
    need により、そのフルーツが登場しないステージではストアに並ばない。 */
 FRUITS.forEach(f => ITEMS.push({
   id:'fake_' + f.id,
@@ -710,8 +758,10 @@ FRUITS.forEach(f => ITEMS.push({
   tag:'出現率',
   need:f.id,
   fake:f.id,                                   // 盤面書き換えの対象フルーツ
-  d:`${f.name}の出現率が2倍。${CONFIG.fakeInterval}ターンごとに盤面の${CONFIG.fakeCount}マスを${f.name}に変える`,
-  apply:c => { c.spawnMul[f.id] = (c.spawnMul[f.id] || 1) * (2 + c.fakeBonus); }
+  d:`${f.name}の出現率が2倍（レベルごとに+1倍）。${CONFIG.fakeInterval}ターンごとに盤面の${CONFIG.fakeCount}マスを${f.name}に変える`,
+  apply:(c,s,it,once) => once('fake_' + f.id, () => {
+    c.spawnMul[f.id] = (c.spawnMul[f.id] || 1) * (1 + (1 + c.fakeBonus) * LV(it));
+  })
 }));
 
 /* 収穫帳シリーズ：消すほどそのフルーツのスコア倍率が伸びる。全フルーツぶん自動生成。 */
@@ -738,6 +788,10 @@ function treasure(id, n, ic, dl, apply){
 }
 const TREASURES = [
   // apply はレベル回数ぶん呼ばれるので、中では1レベルぶんの効果だけを書く
+  // noLevel: レベルアップの概念がない。一度手に入れたら二度と候補に出ず、常に同じ効果のまま。
+  {id:'map', n:'果樹園の地図', ic:'🗺️', noLevel:true,
+    d:'盤面のフルーツ種類 -1（揃いやすくなる）',
+    apply:(c,s,it,once)=>once('map', ()=>{ c.typeCut+=1; })},
   treasure('urn','豊穣の壺','🏺',
     v=>`種の出現率 +${3*v}%`,                        c=>c.seedAdd += 0.03),
   treasure('card','商人の名刺','💳',
@@ -771,14 +825,14 @@ function descOf(x){ return x.dl ? x.dl(LV(x)) : x.d; }
 
 /* ---------------- ステージ（§5） ---------------- */
 const STAGES = [
-  {name:'村はずれの空き地', w:8, h:8,  turns:9,  target:700,   fruits:5},
-  {name:'朝もやの果樹園',   w:8, h:8,  turns:10, target:1600,  fruits:5},
-  {name:'石垣のいちご畑',   w:7, h:7,  turns:12, target:3400,  fruits:5},
-  {name:'風車のある丘',     w:8, h:8,  turns:15, target:7000,  fruits:6},
-  {name:'王立温室',         w:9, h:9,  turns:18, target:14000, fruits:6},
-  {name:'痩せた岩の段々畑', w:6, h:6,  turns:15, target:26000, fruits:5},
-  {name:'霧の大農園',       w:8, h:8,  turns:18, target:48000, fruits:6},
-  {name:'国営中央農場',     w:10,h:10, turns:21, target:90000, fruits:6}
+  {name:'村はずれの空き地', w:8, h:8,  turns:9,  target:6000,   fruits:5},   // 試験的に直接指定
+  {name:'朝もやの果樹園',   w:8, h:8,  turns:10, target:9600,   fruits:5},
+  {name:'石垣のいちご畑',   w:7, h:7,  turns:12, target:20400,  fruits:5},
+  {name:'風車のある丘',     w:8, h:8,  turns:15, target:42000,  fruits:6},
+  {name:'王立温室',         w:9, h:9,  turns:18, target:84000,  fruits:6},
+  {name:'痩せた岩の段々畑', w:6, h:6,  turns:15, target:78000,  fruits:5},
+  {name:'霧の大農園',       w:8, h:8,  turns:18, target:144000, fruits:6},
+  {name:'国営中央農場',     w:10,h:10, turns:21, target:270000, fruits:6}
 ];
 function stageData(i){
   if(i < STAGES.length) return {...STAGES[i]};
@@ -798,6 +852,19 @@ const S = {
   spd:(SPEEDS.find(s => s.id === DEFAULT_SPEED) || SPEEDS[1]).v
 };
 const T = ms => Math.round(ms * S.spd);
+
+/* 安全弁：1回の消去処理（resolve/useBomb）が始まってからの実時間が
+   長くなるほど、以降の待ち時間を自動的に短縮する。
+   通常のプレイでは働かないが、極端な連鎖（例：出現率が偏りすぎて
+   巨大な連鎖が続くケース）で実時間が数十秒〜数分に膨れ上がるのを防ぐ。 */
+function paced(ms){
+  const el = S._resolveStart ? Date.now() - S._resolveStart : 0;
+  // どれだけ長引いても、消える瞬間は必ず何かしら見せる（0msにはしない）。
+  // 「何が起きたか分かる最低限の速さ」を保ったまま、それ以上は圧縮する。
+  if(el > 12000) return Math.min(ms, 55);
+  if(el > 6000)  return Math.min(ms, 90);
+  return ms;                              // 最初の6秒は通常どおりの演出
+}
 function applySpeed(){ document.documentElement.style.setProperty('--sp', S.spd); }
 const $ = id => document.getElementById(id);
 const board = $('board'), tileEls = new Map();
@@ -843,14 +910,22 @@ async function runTriggers(c, chainMul){
   return total;
 }
 
-/* 農園の地力：累計収穫量が10倍になるごとに基礎スコアが永続的に上がる。
-   ステージをまたいで積み上がる唯一の数値で、目標値の上昇に対抗する土台になる。 */
+/* 農園の地力：累計収穫量が「基準ラインの10倍」になるごとに基礎スコアが永続的に上がる。
+   ステージをまたいで積み上がる唯一の数値で、目標値の上昇に対抗する土台になる。
+   基準ライン自体も、クリアしたステージ数が進むごとに指数関数的に厳しくなる
+   （soilStageGrowth倍/ステージ）。これにより、後半ステージのぶ厚い収穫量を
+   ただ1回稼ぐだけで地力が際限なく伸び続ける、という事態を防ぐ。 */
+function soilThresholdBase(){
+  return CONFIG.soilBase * Math.pow(CONFIG.soilStageGrowth, S.maxStage);
+}
 function soilLevel(){
-  if(S.lifetime < CONFIG.soilBase) return 0;
-  return Math.floor(Math.log10(S.lifetime / CONFIG.soilBase)) + 1;
+  const base = soilThresholdBase();
+  if(S.lifetime < base) return 0;
+  return Math.floor(Math.log10(S.lifetime / base)) + 1;
 }
 function soilNext(){
-  return Math.ceil(CONFIG.soilBase * Math.pow(10, soilLevel()));
+  const base = soilThresholdBase();
+  return Math.ceil(base * Math.pow(10, soilLevel()));
 }
 
 /* ---------------- 効果集計（ビルドの心臓部） ---------------- */
@@ -879,7 +954,12 @@ function ctx(){
     return this.length;
   };
   // アイテム／たからものはレベルの回数だけ効果を重ねる（倍率は掛け算で複利になる）
-  const run = x => { cur = x; const n = LV(x); for(let k=0;k<n;k++) x.apply(c, S, x); };
+  // 掛け算で自分自身を更新するタイプの効果（種の出現率×など）は、
+  // レベル回数ぶんそのまま繰り返すと (倍率)^レベル になって暴走するため、
+  // once() でレベルを一度だけ渡して線形に伸ばす。
+  c._once = new Set();
+  const once = (key, fn) => { if(c._once.has(key)) return; c._once.add(key); fn(); };
+  const run = x => { cur = x; const n = LV(x); for(let k=0;k<n;k++) x.apply(c, S, x, once); };
   all.filter(x => !x.late).forEach(run);
   all.filter(x =>  x.late).forEach(run);
   c.baseAdd += CONFIG.soilGain * soilLevel();     // 永続成長ぶん
@@ -1039,8 +1119,17 @@ function buildBoard(){
   }
 }
 
-function findGroups(){
+/* pairMatch: 金・銀の「2個隣接するだけで成立」判定を有効にするかどうか。
+   プレイヤー自身の入れ替え（trySwapの検証・resolveの最初の1回・hasMoveの
+   合法手判定）でのみ true にする。連鎖の途中や盤面の自動生成・作り直し・
+   にせもの系の書き換えでは false のままにし、重力で偶然2つ並んだだけで
+   勝手に発動してしまうのを防ぐ。バナナの追加消去は別経路（extras集合）で
+   処理されるため、この判定とは無関係でそのまま機能する。 */
+// pairMatch: false/undefined→無効。 true→盤面のどこでも許可（hasMoveの仮スワップ判定用）。
+// 配列→そのインデックスのどちらかを含むペアだけ許可（実際のスワップに絞り込む）。
+function findGroups(pairMatch){
   const {w,h,grid} = S, mark = new Uint8Array(w*h);
+  const pairScope = Array.isArray(pairMatch) ? new Set(pairMatch) : null;
   for(let y=0;y<h;y++){
     let run = 1;
     for(let x=1;x<=w;x++){
@@ -1075,25 +1164,30 @@ function findGroups(){
   }
 
   // 金・銀は2個隣接するだけで成立する（通常フルーツの3個マッチには適用しない）
-  const used = new Set();
-  out.forEach(g => g.forEach(i => used.add(i)));
-  for(const sp of ['gold','silver']){
-    const done = new Uint8Array(w*h);
-    for(let i=0;i<w*h;i++){
-      if(done[i] || !grid[i] || grid[i].sp !== sp) continue;
-      const st = [i], comp = []; done[i] = 1;
-      while(st.length){
-        const cur = st.pop(); comp.push(cur);
-        const cx = cur%w, cy = (cur/w)|0;
-        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-          const nx = cx+dx, ny = cy+dy;
-          if(nx<0||ny<0||nx>=w||ny>=h) continue;
-          const ni = ny*w+nx;
-          if(!done[ni] && grid[ni] && grid[ni].sp === sp){ done[ni] = 1; st.push(ni); }
+  // ※ pairMatch が true のとき、つまりプレイヤー自身の操作のときだけ判定する
+  if(pairMatch){
+    const used = new Set();
+    out.forEach(g => g.forEach(i => used.add(i)));
+    for(const sp of ['gold','silver']){
+      const done = new Uint8Array(w*h);
+      for(let i=0;i<w*h;i++){
+        if(done[i] || !grid[i] || grid[i].sp !== sp) continue;
+        const st = [i], comp = []; done[i] = 1;
+        while(st.length){
+          const cur = st.pop(); comp.push(cur);
+          const cx = cur%w, cy = (cur/w)|0;
+          for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+            const nx = cx+dx, ny = cy+dy;
+            if(nx<0||ny<0||nx>=w||ny>=h) continue;
+            const ni = ny*w+nx;
+            if(!done[ni] && grid[ni] && grid[ni].sp === sp){ done[ni] = 1; st.push(ni); }
+          }
         }
+        const fresh = comp.filter(j => !used.has(j));   // 通常マッチ済みのぶんは除く
+        // pairScope がある場合、そのスワップに関係するペアだけ通す
+        if(pairScope && !fresh.some(j => pairScope.has(j))) continue;
+        if(fresh.length >= 2){ fresh.forEach(j => used.add(j)); out.push(fresh); }
       }
-      const fresh = comp.filter(j => !used.has(j));   // 通常マッチ済みのぶんは除く
-      if(fresh.length >= 2){ fresh.forEach(j => used.add(j)); out.push(fresh); }
     }
   }
   return out;
@@ -1133,7 +1227,7 @@ function hasMove(){
       if(nx>=w || ny>=h) continue;
       const i = y*w+x, j = ny*w+nx;
       [grid[i],grid[j]] = [grid[j],grid[i]];
-      const ok = findGroups().length > 0;
+      const ok = findGroups([i,j]).length > 0;
       [grid[i],grid[j]] = [grid[j],grid[i]];
       if(ok) return true;
     }
@@ -1164,7 +1258,12 @@ function sync(spawnFromTop = true){
     if(!el){
       el = document.createElement('div');
       el.className = 'tile';
-      el.innerHTML = `<div class="face" style="--fc:${F[c.f].color};--fr:${F[c.f].shape}">${F[c.f].icon}</div>`
+      const fr = F[c.f];
+      const useArt = CONFIG.useFruitArt && fr.img;
+      const glyph = useArt
+        ? `<img class="fruit-tile-img" src="${fr.img}" alt="${fr.name}">`
+        : fr.icon;
+      el.innerHTML = `<div class="face ${useArt ? 'art' : ''}" style="--fc:${fr.color};--fr:${fr.shape}">${glyph}</div>`
                    + `<span class="bn"></span>`;
       el.dataset.id = c.id;
       board.appendChild(el);
@@ -1290,7 +1389,7 @@ async function trySwap(a, b){
   S.busy = true; S.sel = null;
   [S.grid[a], S.grid[b]] = [S.grid[b], S.grid[a]];
   sync(false); await sleep(T(200));
-  if(!findGroups().length){
+  if(!findGroups([a,b]).length){
     [S.grid[a], S.grid[b]] = [S.grid[b], S.grid[a]];
     sync(false);
     board.classList.add('shake');
@@ -1299,7 +1398,7 @@ async function trySwap(a, b){
     S.busy = false; hud(); return;
   }
   S.turns++;
-  await resolve(true);          // プレイヤー自身のマッチ
+  await resolve(true, [a, b]);   // プレイヤー自身のマッチ（このスワップに関係するペアだけ許可）
   await fakePhase();
   await endTurn();
 }
@@ -1358,23 +1457,31 @@ function setFruit(i, f){
   const el = tileEls.get(cell.id);
   if(!el) return;
   const face = el.firstElementChild;
-  face.textContent = F[f].icon;
-  face.style.setProperty('--fc', F[f].color);
-  face.style.setProperty('--fr', F[f].shape);
+  const fr = F[f];
+  const useArt = CONFIG.useFruitArt && fr.img;
+  face.classList.toggle('art', useArt);
+  if(useArt){
+    face.innerHTML = `<img class="fruit-tile-img" src="${fr.img}" alt="${fr.name}">`;
+  } else {
+    face.textContent = fr.icon;
+  }
+  face.style.setProperty('--fc', fr.color);
+  face.style.setProperty('--fr', fr.shape);
   face.classList.remove('morph');
   void face.offsetHeight;
   face.classList.add('morph');
 }
 
 /* 連鎖のマーク（🔗）
-   連鎖が起きるたび、盤面のマークの固有倍率が現在値の markGrowth 倍になる。
+   連鎖が起きるたび、盤面のマークの固有倍率に markStep が加算される（線形）。
    連鎖が深いほど新しいマークが増える（3連鎖で1個、以降1段ごとに倍）。
-   マークの付いたフルーツを消すと、その固有倍率が基本倍率に加算される。 */
+   マークの付いたフルーツを消すと、その固有倍率が「付いていたフルーツ自身」の
+   倍率に加算される（例：りんごに付いたマークを消すとりんごだけが強くなる）。 */
 function growMarks(){
   let n = 0;
   for(let i=0;i<S.w*S.h;i++){
     const cell = S.grid[i];
-    if(cell && cell.mk){ cell.mk = Math.round(cell.mk * CONFIG.markGrowth * 1000) / 1000; n++; }
+    if(cell && cell.mk){ cell.mk = Math.round((cell.mk + CONFIG.markStep) * 1000) / 1000; n++; }
   }
   return n;
 }
@@ -1389,9 +1496,9 @@ function grantMarks(n){
     if(cell && !cell.mk && !cell.sp) pool.push(i);
   }
   const put = shuffled(pool).slice(0, n);
-  put.forEach(i => {
+  put.forEach((i, k) => {
     S.grid[i].mk = CONFIG.markBase;
-    floatText(i, '🔗', '#b6f0c8', {cls:'fx', dy:0.58});
+    if(k < CONFIG.maxMiniFloats) floatText(i, '🔗', '#b6f0c8', {cls:'fx', dy:0.58});
   });
   if(put.length) sync(false);
   return put.length;
@@ -1420,7 +1527,7 @@ async function detonateBlacks(list, c, chainMul){
     const el = tileEls.get(ids[k]);
     if(el) el.firstElementChild.classList.add('charge');
     announce(ids.length > 1 ? `黒 の 収 穫  ${k+1} / ${ids.length}` : '黒 の 収 穫', SP.black.col);
-    await sleep(T(620));
+    await sleep(paced(T(620)));
 
     const kill = new Set([idx]);
     let n = 0;
@@ -1429,13 +1536,14 @@ async function detonateBlacks(list, c, chainMul){
       if(!cell || j === idx || waiting.has(cell.id)) continue;
       const v = cellValue(cell, c) * bm * chainMul;
       total += v;
-      floatText(j, '+' + Math.round(v), SP.black.col, {cls:'mini', delay:T(Math.min(n++, 16) * 12)});
+      if(n < CONFIG.maxMiniFloats) floatText(j, '+' + Math.round(v), SP.black.col, {cls:'mini', delay:T(Math.min(n, 16) * 12)});
+      n++;
       kill.add(j);
     }
     S.stageCleared += kill.size;
     await clearCells(kill);
     await gravity();                           // 補充してから次の黒へ
-    if(k < ids.length - 1) await sleep(T(220));
+    if(k < ids.length - 1) await sleep(paced(T(220)));
   }
   return total;
 }
@@ -1468,7 +1576,7 @@ async function detonate(fuse, c, chainMul, protect){
       floatXY((S.w-1)/2, S.h*0.40,
               wave > 1 ? `誘爆 ${wave}` : `${label.n}の爆発`,
               label.col, {cls:'grp'});
-      await sleep(T((rains.length || golds.length) ? 300 : 200));
+      await sleep(paced(T((rains.length || golds.length) ? 300 : 200)));
     }
 
     // ---- 消去範囲を組み立てる（値は適用されるスコア倍率）----
@@ -1505,8 +1613,15 @@ async function detonate(fuse, c, chainMul, protect){
       shuffled(pool).slice(0, eat).forEach(i => put(i, spMult('silver', c)));
     }
 
-    // 虹：ランダムなマスを自分と同じ種類に塗り替えてから、その種類を全消去
-    for(const i of rains){
+    // 虹×虹：同時に2つ起爆すると、個別の同種消去ではなく黒と同じ「盤面を丸ごと消す」効果になる
+    if(rains.length >= 2){
+      const rm = spMult('rainbow', c);
+      announce('虹 × 虹 の 収 穫', SP.rainbow.col);
+      await sleep(paced(T(400)));
+      for(let j=0;j<S.w*S.h;j++) put(j, rm);
+    }
+    // 虹（単独）：ランダムなマスを自分と同じ種類に塗り替えてから、その種類を全消去
+    else for(const i of rains){
       const f = S.grid[i].f;
       const pool = [];
       for(let j=0;j<S.w*S.h;j++){
@@ -1522,7 +1637,7 @@ async function detonate(fuse, c, chainMul, protect){
           floatText(j, F[f].icon, SP.rainbow.col, {cls:'fx', dy:0.58});
         });
         floatXY((S.w-1)/2, S.h*0.58, `${F[f].name}に染まる ${paint.length}`, SP.rainbow.col, {cls:'grp'});
-        await sleep(T(520));                                     // 染まったのを見せてから消す
+        await sleep(paced(T(520)));                               // 染まったのを見せてから消す
       }
       for(let j=0;j<S.w*S.h;j++) if(S.grid[j] && S.grid[j].f === f) put(j, spMult('rainbow', c));
     }
@@ -1534,9 +1649,12 @@ async function detonate(fuse, c, chainMul, protect){
       const cell = S.grid[i];
       const v = cellValue(cell, c) * m * chainMul;
       total += v;
-      floatText(i, '+' + Math.round(v),
-                m >= spMult('rainbow', c) ? '#a8f0ff' : m >= gm ? '#ffdf6b' : '#dfe8ee',
-                {cls:'mini', delay:T(40 + Math.min(k++, 14) * 14)});
+      if(k < CONFIG.maxMiniFloats){
+        floatText(i, '+' + Math.round(v),
+                  m >= spMult('rainbow', c) ? '#a8f0ff' : m >= gm ? '#ffdf6b' : '#dfe8ee',
+                  {cls:'mini', delay:T(40 + Math.min(k, 14) * 14)});
+      }
+      k++;
       if(cell.sp) next.push(i);       // 次の波まで盤面に残す
     }
 
@@ -1558,10 +1676,10 @@ async function detonate(fuse, c, chainMul, protect){
       if(el) el.firstElementChild.classList.remove('charge');
       sync(false);
       floatText(becomeRainbow, '虹色', SP.rainbow.col, {cls:'fx', dy:0.58});
-      await sleep(T(320));
+      await sleep(paced(T(320)));
     }
 
-    if(nextIds.length) await sleep(T(260));   // 残った特殊フルーツを見せる間
+    if(nextIds.length) await sleep(paced(T(260)));   // 残った特殊フルーツを見せる間
     // 黒の処理で補充が入ると位置が変わるため、id から引き直す
     fuse = nextIds.map(id => S.grid.findIndex(cell => cell && cell.id === id)).filter(i => i >= 0);
   }
@@ -1570,12 +1688,16 @@ async function detonate(fuse, c, chainMul, protect){
 
 /* manual: プレイヤー自身の入れ替えによる処理かどうか。
    黒いフルーツは manual な最初の消去でしか反応しない。 */
-async function resolve(manual){
+async function resolve(manual, swapCells){
+  S._resolveStart = Date.now();      // 安全弁：この呼び出しからの経過時間を計る
   const c = ctx();
   let chain = 0, raw = 0, dyn = 0, procs = 0, seedGain = 0;
 
   while(true){
-    const groups = findGroups();
+    // 金・銀の2個ペア判定は、手でスワップした直後の1回・かつそのスワップに
+    // 関係するペアだけに限定する。連鎖の2回目以降や、重力で偶然できた
+    // 無関係なペアでは発動しない。
+    const groups = findGroups(manual && chain === 0 && swapCells ? swapCells : false);
     if(!groups.length || chain > 60) break;
     chain++;
     if(chain >= 2){ bump('chain'); growMarks(); }
@@ -1588,14 +1710,18 @@ async function resolve(manual){
         const cell = S.grid[i], f = F[cell.f];
         const cellScore = cellValue(cell, c);
         gBase += cellScore;
-        // 1個ずつの点数を消える瞬間に表示
-        floatText(i, cellScore, cellScore < 0 ? '#e35b6d' : '#fff',
-                  {cls:'mini', delay: T(Math.min(k, 6) * 34)});
+        // 1個ずつの点数を消える瞬間に表示（塊が大きすぎるときは上限を超えたぶんを省略）
+        if(k < CONFIG.maxMiniFloats){
+          floatText(i, Math.round(cellScore), cellScore < 0 ? '#FFB3BA' : '#fff',
+                    {cls:'mini', delay: T(Math.min(k, 6) * 34)});
+        }
         // 固有効果判定（§4.1）
         const chance = CONFIG.effectChance + c.chanceAdd + (c.fruitChance[cell.f] || 0);
         if(Math.random() < chance){
           procs++; dyn += c.perProc; bump('proc');
-          floatText(i, f.fx, f.color, {cls:'fx', dy:0.58, delay: T(Math.min(k,6)*34)});
+          if(k < CONFIG.maxMiniFloats){
+            floatText(i, f.fx, f.color, {cls:'fx', dy:0.58, delay: T(Math.min(k,6)*34)});
+          }
           switch(cell.f){
             case 'apple':  gBonus += 45; break;
             case 'orange': seedGain += 1; break;
@@ -1628,7 +1754,7 @@ async function resolve(manual){
       const cx = g.reduce((a,i) => a + (i%S.w), 0) / g.length;
       const cy = g.reduce((a,i) => a + ((i/S.w)|0), 0) / g.length;
       floatXY(cx, cy, (gScore < 0 ? '' : '+') + Math.round(gScore),
-              gScore < 0 ? '#e35b6d' : '#f5b942',
+              gScore < 0 ? '#FFB3BA' : '#FFD86B',
               {cls:'grp', delay: T(Math.min(g.length,7)*34 + 170)});
     }
 
@@ -1673,7 +1799,7 @@ async function resolve(manual){
       if(got) floatXY((S.w-1)/2, S.h*0.30, `🔗 ×${got}`, '#b6f0c8', {cls:'grp', delay:T(120)});
     }
     if(chain > 1) floatXY((S.w-1)/2, S.h*0.18, `${chain} 連鎖  ${fmtMult(chainMul)}`,
-                          '#f5b942', {cls:'grp', delay:T(60)});
+                          '#FFD86B', {cls:'grp', delay:T(60)});
 
     await clearCells(all);
 
@@ -1688,7 +1814,7 @@ async function resolve(manual){
         floatText(b.i, SP[b.sp].n, SP[b.sp].col, {cls:'fx', dy:0.58});
       });
       sync(false);
-      await sleep(T(320));
+      await sleep(paced(T(320)));
     }
     await gravity();
     raw += await runTriggers(c, chainMul);
@@ -1702,7 +1828,7 @@ async function resolve(manual){
     S.harvest += gained;
     const ts = $('turnScore');
     ts.textContent = (gained >= 0 ? '+' : '') + gained.toLocaleString();
-    ts.style.color = gained >= 0 ? '#f5b942' : '#e35b6d';
+    ts.style.color = gained >= 0 ? '#FFD86B' : '#FFB3BA';
     ts.classList.remove('show'); void ts.offsetHeight; ts.classList.add('show');
   }
   hud();
@@ -1738,7 +1864,7 @@ async function clearCells(set){
     if(el){ el.classList.add('pop'); tileEls.delete(cell.id); setTimeout(()=>el.remove(), T(300)); }
     S.grid[i] = null;
   }
-  await sleep(T(360));
+  await sleep(paced(T(360)));
 }
 
 async function gravity(){
@@ -1750,7 +1876,7 @@ async function gravity(){
       S.grid[y*S.w+x] = k < col.length ? col[k] : newCell();
   }
   sync(true);
-  await sleep(T(300));
+  await sleep(paced(T(300)));
 }
 
 /* にせもの系アイテムの盤面書き換え（3ターンに1回）。
@@ -1833,6 +1959,7 @@ function bombZone(idx, r, c){
 }
 
 async function useBomb(idx){
+  S._resolveStart = Date.now();      // 安全弁：この呼び出しからの経過時間を計る
   const c = ctx(), r = CONFIG.bombRadius + c.bombAdd;
   if(S.seeds < CONFIG.bombCost){ S.bombMode = false; hud(); return; }
   S.seeds -= CONFIG.bombCost;             // 種をそのまま爆弾として使う
@@ -1888,6 +2015,7 @@ function giveItem(it){
 function rollStore(){
   const c = ctx(), n = c.storeSize, pool = [];
   for(const it of ITEMS){
+    if(it.once) continue;     // 枠を取らない即発アイテムは種と交換する専用ショップへ移動した
     if(it.unique && S.items.some(x => x.id === it.id)) continue;
     if(S.items.some(x => x.id === it.id && LV(x) >= CONFIG.itemMaxLv)) continue;
     if(it.need && !S.fruitIds.includes(it.need)) continue;
@@ -1982,9 +2110,11 @@ function renderStore(discardMode){
       <div class="row">
         <button class="btn" data-act="reroll" ${canReroll ? '' : 'disabled'}>
           🌱 引き直す</button>
-        <button class="btn ghost" data-act="skip">取らずに次へ</button>
+        <button class="btn ghost" data-act="skip">取らずに次へ（🌱+${CONFIG.skipSeedReward}）</button>
       </div>
       ${full ? '<div class="sub" style="margin-top:8px;color:var(--bad)">枠が満杯です。取得すると手放すアイテムを選びます。</div>' : ''}
+
+      <div class="row"><button class="btn ghost" data-act="instant">🎫 即発アイテムと交換（枠を消費しない）</button></div>
 
       <h3 class="sec">現在のアイテム（${S.items.length} / ${maxSlots}）</h3>
       <div class="own">${ownList}</div>
@@ -2015,7 +2145,13 @@ function renderStore(discardMode){
       rollStore(); renderStore(); hud();
     };
     const sk = el.querySelector('[data-act="skip"]');
-    if(sk) sk.onclick = () => finishStore();
+    if(sk) sk.onclick = () => {
+      S.seeds += CONFIG.skipSeedReward;
+      toast(`種 +${CONFIG.skipSeedReward}`);
+      finishStore();
+    };
+    const inst = el.querySelector('[data-act="instant"]');
+    if(inst) inst.onclick = () => openInstantShop(() => renderStore());
     const cd = el.querySelector('[data-act="cancelDrop"]');
     if(cd) cd.onclick = () => { S.pending = null; renderStore(); };
     const bd = el.querySelector('[data-act="bd"]');
@@ -2023,6 +2159,41 @@ function renderStore(discardMode){
     const cat = el.querySelector('[data-act="cat"]');
     if(cat) cat.onclick = () => openCatalog(() => renderStore());
   });
+}
+
+/* ---------------- 即発アイテムの種ショップ（枠を取らないぶん、種と交換する） ---------------- */
+function openInstantShop(back){
+  if(typeof back !== 'function') back = null;
+  const done = () => back ? back() : closeSheet();
+  const instants = ITEMS.filter(it => it.once);
+
+  const draw = () => sheet(`
+    <h2>即発アイテム</h2>
+    <div class="sub">枠を消費しない代わりに、不思議な種と交換する。取った瞬間だけ効果を発揮する。</div>
+    <div class="seedbar">
+      <span class="lbl">🌱 不思議な種</span>
+      <span class="num">×${S.seeds}</span>
+      <span class="cost">1個 ×${CONFIG.instantItemCost}</span>
+    </div>
+    ${instants.map(it => `
+      <button class="card" data-buy="${it.id}" ${S.seeds < CONFIG.instantItemCost ? 'disabled style="opacity:.4"' : ''}>
+        <span class="ic">${it.ic}</span>
+        <span style="flex:1"><span class="t">${it.n}</span><div class="d">${it.d}</div></span>
+        <span class="chk" style="font-size:11px;color:var(--lantern)">🌱${CONFIG.instantItemCost}</span>
+      </button>`).join('')}
+    <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="c">戻る</button></div>
+  `, el => {
+    el.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
+      if(S.seeds < CONFIG.instantItemCost) return;
+      const it = instants.find(x => x.id === b.dataset.buy);
+      S.seeds -= CONFIG.instantItemCost;
+      giveItem(it);            // once系はgiveItem内でonGetだけ呼ばれ、枠は消費しない
+      hud();
+      draw();
+    });
+    el.querySelector('[data-act="c"]').onclick = done;
+  }, done);
+  draw();
 }
 
 /* ============================================================================
@@ -2080,11 +2251,43 @@ function startStage(){
 
 async function stageClear(){
   S.busy = true;
+
+  // まず「クリアした」という手応えを見せてから、いつもの選択画面へ進む
+  announce('収 穫 達 成 ！', 'var(--lantern)');
+  await sleep(T(900));
+
   S.maxStage = Math.max(S.maxStage, S.stage + 1);
+  S.slots = Math.min(CONFIG.maxSlots, S.slots + CONFIG.slotGain);
+
+  // 持ち越すアイテムの既定選択：2個以下ならすべて、3個以上ならレベルの高い順に2個。
+  // あとから「持ち越すアイテムを選ぶ」画面で変更できる。
+  S.carryOver = S.items.length <= CONFIG.carryItems
+    ? S.items.slice()
+    : S.items.slice().sort((a,b) => LV(b) - LV(a)).slice(0, CONFIG.carryItems);
+
+  // 余ったターンと、持ち越されずに消えるアイテムをポイントに換算する
+  // （地力・累計収穫量にも反映されるよう、lifetimeを確定させる前に加算する）
+  const leftoverTurns = Math.max(0, S.turnsMax - S.turns);
+  const turnBonus = leftoverTurns > 0
+    ? Math.round((S.target / S.turnsMax) * CONFIG.turnBonusRatio) * leftoverTurns
+    : 0;
+  const lostItems = S.items.filter(it => !S.carryOver.includes(it));
+  const itemBonus = lostItems.reduce((a, it) => a + CONFIG.itemBonusPerLv * LV(it), 0);
+  if(turnBonus || itemBonus){
+    S.harvest += turnBonus + itemBonus;
+    const ts = $('turnScore');
+    if(ts){
+      ts.textContent = '+' + (turnBonus + itemBonus).toLocaleString();
+      ts.style.color = '#FFD86B';
+      ts.classList.remove('show'); void ts.offsetHeight; ts.classList.add('show');
+    }
+    await sleep(T(500));
+  }
+
   const soilBefore = soilLevel();
   S.lifetime += Math.max(0, S.harvest);   // 累計収穫量は永続（地力の元）
   const soilAfter = soilLevel();
-  S.slots = Math.min(CONFIG.maxSlots, S.slots + CONFIG.slotGain);
+
   // 継承の苗木：基本倍率の上昇分を次のステージへ
   const carryFrac = Math.min(1, ctx().carryMult);
   S.carriedMult = 1 + (S.baseMult - 1) * carryFrac;
@@ -2095,7 +2298,9 @@ async function stageClear(){
   const rerollCost = () => CONFIG.treasureReroll + rerolls;
   let offer = [];
   const rollOffer = () => {
-    const pool = TREASURES.filter(t => !S.treasures.some(x => x.id === t.id));
+    // 通常のたからものは重複して出ることがある（出れば強化のチャンスになる）。
+    // ただし noLevel（レベルアップの概念がないもの）は、一度持ったら二度と出ない。
+    const pool = TREASURES.filter(t => !(t.noLevel && S.treasures.some(x => x.id === t.id)));
     offer = [];
     while(offer.length < 3 && pool.length) offer.push(...pool.splice(rnd(pool.length), 1));
   };
@@ -2106,8 +2311,13 @@ async function stageClear(){
     <h2>収穫達成</h2>
     <div class="sub">${stageData(S.stage).name} ／ ${S.harvest.toLocaleString()} 収穫</div>
     <div class="doc">
+      ${turnBonus ? `残り${leftoverTurns}ターンぶんのボーナス <b style="color:var(--lantern)">+${turnBonus.toLocaleString()}</b><br>` : ''}
+      ${itemBonus ? `持ち越されない${lostItems.length}個のアイテムをポイント換算 <b style="color:var(--lantern)">+${itemBonus.toLocaleString()}</b><br>` : ''}
       アイテム枠が <b>${Math.min(CONFIG.maxSlots, S.slots)}</b> に増えた。<br>
-      持っていたアイテムは畑に還った。<br>
+      ${S.items.length === 0 ? ''
+        : S.items.length <= CONFIG.carryItems
+          ? `アイテムは全て（${S.items.length}個）次の農園へ連れていく。<br>`
+          : `アイテムのうち <b>${S.carryOver.length}</b> 個を次の農園へ連れていく（下のボタンで選び直せる）。<br>`}
       ${S.baseMult > 1 ? `基本倍率 <b>×${S.baseMult}</b>${carryFrac > 0
         ? ` → <b style="color:var(--lantern)">×${Math.round(S.carriedMult*100)/100} を持ち越し</b>`
         : '（持ち越しには「継承の苗木」が必要）'}<br>` : ''}
@@ -2138,7 +2348,7 @@ async function stageClear(){
 
     sheet(`${head}${body}
       ${full && offer.length ? `<div class="sub" style="margin-top:8px;color:var(--lantern)">
-        枠が満杯です。選ぶと、入れ替えるか重ねて強化するかを決められます。</div>` : ''}
+        枠が満杯です。同じたからものなら自動で強化され、違うものなら入れ替えか置いていくかを選べます。</div>` : ''}
       ${offer.length ? `
         <div class="seedbar">
           <span class="lbl">🌱 不思議な種</span>
@@ -2155,8 +2365,8 @@ async function stageClear(){
           <span class="ic">${t.ic}</span><span class="t">${t.n}</span>
           <span class="d">${descOf(t)}</span>
           ${LV(t) > 1 ? `<span class="lv">Lv${LV(t)}</span>` : ''}</div>`).join('')}</div>` : ''}
-      ${S.items.length ? `<div class="row" style="margin-top:10px">
-        <button class="btn" data-act="carry">🎒 アイテムを持ち越す（${S.carryOver.length} / ${CONFIG.carryItems}）</button>
+      ${S.items.length > CONFIG.carryItems ? `<div class="row" style="margin-top:10px">
+        <button class="btn" data-act="carry">🎒 持ち越すアイテムを選び直す（${S.carryOver.length} / ${CONFIG.carryItems}）</button>
       </div>` : ''}
       <div class="row" style="margin-top:10px">
         <button class="btn" data-act="map">🗺️ マップ</button>
@@ -2177,11 +2387,21 @@ async function stageClear(){
       };
       el.querySelectorAll('[data-tre]').forEach(b => b.onclick = () => {
         const t = offer[+b.dataset.tre];
-        if(S.treasures.length < CONFIG.treasureSlots){
+        const own = S.treasures.find(x => x.id === t.id);
+        if(own){
+          // 偶然同じたからものが出た → 自動的に強化する（枠の空き状況に関係ない）
+          if(t.noLevel){ toast(`${t.n} はすでに持っている`); draw(); return; }
+          const nl = Math.min(CONFIG.treasureMaxLv, LV(own) + 1);
+          const maxed = nl === LV(own);
+          own.level = nl;
+          toast(maxed ? `${t.n} は上限に達している` : `${t.n} が Lv${nl} になった`);
+          hud();
+          nextStage();
+        } else if(S.treasures.length < CONFIG.treasureSlots){
           S.treasures.push({...t, level:1});
           nextStage();
         } else {
-          handle(t);
+          handle(t);   // 新しいたからもの、かつ枠が満杯 → 入れ替えるか捨てるかのみ
         }
       });
       el.querySelector('[data-act="next"]').onclick = nextStage;
@@ -2193,7 +2413,8 @@ async function stageClear(){
     const picked = i => S.carryOver.includes(S.items[i]);
     sheet(`
       <h2>アイテムを持ち越す</h2>
-      <div class="sub">最大 ${CONFIG.carryItems} 個まで、次の農園へ連れていけます（${S.carryOver.length} / ${CONFIG.carryItems}）</div>
+      <div class="sub">最大 ${CONFIG.carryItems} 個まで（${S.carryOver.length} / ${CONFIG.carryItems}）。
+        レベルの高い順に既定で選ばれています。タップで選び直せます。</div>
       ${S.items.map((it,i) => `
         <button class="card ${it.neg?'neg':''} ${picked(i)?'on':''}" data-pick="${i}">
           <span class="ic">${it.ic}</span>
@@ -2220,30 +2441,24 @@ async function stageClear(){
     }, draw);
   };
 
-  // ---- 枠が満杯のときの処理：入れ替える／重ねて強化する／捨てる ----
+  // ---- 枠が満杯・かつ新規（重複ではない）たからものを見つけたときの処理 ----
+  // 強化は「偶然同じたからものが出たとき」だけに限定したので、ここでは
+  // 入れ替えるか、置いていくかの二択になる。
   const handle = (t, mode) => {
-    if(mode === 'swap' || mode === 'merge'){
-      const merge = mode === 'merge';
+    if(mode === 'swap'){
       sheet(`
         <h2>${t.ic} ${t.n}</h2>
-        <div class="sub">${merge ? '重ねるたからものを選ぶ（Lvが1つ上がる）' : '手放すたからものを選ぶ'}</div>
-        ${S.treasures.map((o,i) => {
-          const capped = merge && LV(o) >= CONFIG.treasureMaxLv;
-          return `<button class="card tre" data-pick="${i}" ${capped ? 'disabled style="opacity:.35"' : ''}>
+        <div class="sub">手放すたからものを選ぶ</div>
+        ${S.treasures.map((o,i) => `<button class="card tre" data-pick="${i}">
             <span class="ic">${o.ic}</span>
             <span style="flex:1"><span class="t">${o.n}
               ${LV(o) > 1 ? `<span class="tag">Lv${LV(o)}</span>` : ''}</span>
-              <div class="d">${merge
-                ? (capped ? 'これ以上は強化できない' : `${descOf(o)} → ${o.dl(LV(o)+1)}`)
-                : descOf(o)}</div></span>
-          </button>`;
-        }).join('')}
+              <div class="d">${descOf(o)}</div></span>
+          </button>`).join('')}
         <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="back">戻る</button></div>
       `, el => {
         el.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
-          const i = +b.dataset.pick;
-          if(merge) S.treasures[i].level = Math.min(CONFIG.treasureMaxLv, LV(S.treasures[i]) + 1);
-          else      S.treasures[i] = {...t, level:1};
+          S.treasures[+b.dataset.pick] = {...t, level:1};
           hud();
           nextStage();
         });
@@ -2260,20 +2475,17 @@ async function stageClear(){
         <span style="flex:1"><span class="t">入れ替える</span>
           <div class="d">持っているたからものを1つ手放して、これを Lv1 で持ち帰る</div></span>
       </button>
-      <button class="card tre" data-act="merge">
-        <span class="ic">✨</span>
-        <span style="flex:1"><span class="t">重ねて強化する</span>
-          <div class="d">これを捧げて、持っているたからもの1つの Lv を +1 する（最大 Lv${CONFIG.treasureMaxLv}）</div></span>
-      </button>
       <button class="card" data-act="drop">
         <span class="ic">🗑️</span>
         <span style="flex:1"><span class="t">置いていく</span>
           <div class="d">何も変えずに次の農園へ</div></span>
       </button>
+      <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
+        強化は、偶然同じたからものが再び出たときだけできる。
+      </div>
       <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="back">選び直す</button></div>
     `, el => {
       el.querySelector('[data-act="swap"]').onclick  = () => handle(t, 'swap');
-      el.querySelector('[data-act="merge"]').onclick = () => handle(t, 'merge');
       el.querySelector('[data-act="drop"]').onclick  = nextStage;
       el.querySelector('[data-act="back"]').onclick  = draw;
     }, draw);
@@ -2554,7 +2766,7 @@ function openCatalog(back){
 
   const misc = ITEMS.filter(i => !TAG_ORDER.includes(i.tag));
   const fruitRows = FRUITS.map(f => `<div class="card" style="border-color:${f.color}44">
-      <span class="ic">${f.icon}</span>
+      <span class="ic">${fruitIconHTML(f.id, '30px')}</span>
       <span style="flex:1"><span class="t">${f.name}<span class="tag">基礎 ${f.base}</span></span>
         <div class="d">${f.fx}：${f.fxDesc}</div></span>
     </div>`).join('');
@@ -2597,7 +2809,7 @@ function openBreakdown(back){
     const fm = c.fruitMul[id] || 1;
     const skew = rt > evenRate * 1.08 ? 'var(--lantern)' : rt < evenRate * 0.92 ? 'var(--bad)' : 'var(--dim)';
     return `<tr>
-      <td class="ic">${f.icon}</td>
+      <td class="ic">${fruitIconHTML(id, '19px')}</td>
       <td>${f.name}<br><span style="font-size:10px;color:var(--dim)">${f.fx}：${f.fxDesc}</span></td>
       <td>${score}
         <br><span style="font-size:10px;color:${ch > CONFIG.effectChance ? 'var(--lantern)' : 'var(--dim)'};font-weight:400">効果 ${pct(ch)}</span>
@@ -2676,11 +2888,11 @@ function openBreakdown(back){
               return k.length ? k.map(id => F[id].icon + '+' + (Math.round(by[id]*100)/100)).join(' ') : '—';
             })()}</span></td></tr>
       <tr class="mute"><td class="ic">📈</td><td>連鎖1回ごとに固有倍率が</td>
-        <td>${fmtMult(CONFIG.markGrowth)}</td></tr>
+        <td>+${CONFIG.markStep}</td></tr>
       <tr class="mute"><td class="ic">➕</td><td>マークが増える連鎖数</td>
         <td>${[3,4,5,6].map(n => n + '連鎖:' + markCount(n)).join(' / ')}</td></tr>
       ${Object.keys(S.fruitMark).length ? Object.entries(S.fruitMark).map(([id,v]) =>
-        `<tr><td class="ic">${F[id].icon}</td><td>${F[id].name}がマークで育った量</td>
+        `<tr><td class="ic">${fruitIconHTML(id, '19px')}</td><td>${F[id].name}がマークで育った量</td>
          <td>+${Math.round(v*100)/100}</td></tr>`).join('') : ''}
     </table>
 
@@ -2940,7 +3152,7 @@ $('btnOpt').onclick = () => {
 };
 
 $('btnHelp').onclick = () => {
-  const fx = FRUITS.map(f => `<li>${f.icon} ${f.name} — <b>${f.fx}</b>：${f.fxDesc}</li>`).join('');
+  const fx = FRUITS.map(f => `<li>${fruitIconHTML(f.id, '17px')} ${f.name} — <b>${f.fx}</b>：${f.fxDesc}</li>`).join('');
   sheet(`
     <h2>遊び方</h2>
     <div class="sub">マッチ3 × ビルド構築</div>
@@ -2964,7 +3176,7 @@ $('btnHelp').onclick = () => {
       <h3 class="sec">連鎖のマーク 🔗</h3>
       1ターンのうちに ${CONFIG.markChainStart} 連鎖に達すると、盤面のフルーツに 🔗 が付く。
       付く数は連鎖が1段深まるごとに倍になる（${[3,4,5,6].map(n=>n+'連鎖で'+markCount(n)+'個').join('、')}）。<br>
-      🔗 は<b>連鎖が起きるたびに固有倍率が現在値の${Math.round((CONFIG.markGrowth-1)*100)}%ずつ育つ</b>。
+      🔗 は<b>連鎖が起きるたびに固有倍率が +${CONFIG.markStep} ずつ育つ</b>（線形）。
       育った 🔗 を消すと、その分が<b>付いていたフルーツ自身の倍率</b>に加算される。
       りんごに付いた 🔗 を消せば、そのステージのあいだ<b>りんごだけ</b>が強くなる。<br>
       同じフルーツに何度も乗せれば、特定のフルーツを極端に伸ばせる。
@@ -2978,7 +3190,9 @@ $('btnHelp').onclick = () => {
       使い切りか、数ターンで効き目が切れるアイテム。枠の右上に残りターンが出る。
       使い切りのものは枠を消費せず、取った瞬間に効果だけ出て消える。
       <h3 class="sec">持ち越し</h3>
-      ステージクリア時に、アイテムを最大 ${CONFIG.carryItems} 個だけ次の農園へ連れていける。
+      ステージクリア時に、アイテムを最大 ${CONFIG.carryItems} 個まで次の農園へ連れていける。
+      ${CONFIG.carryItems}個以下ならすべて自動で持ち越され、それを超える場合は
+      レベルの高い${CONFIG.carryItems}個が既定で選ばれる（あとから選び直せる）。
       基本倍率はたからもの「継承の苗木」があれば一部を持ち越せる。
       <h3 class="sec">特殊フルーツ</h3>
       まとめて消した数に応じて、その塊の中心にフルーツが1つ残る。次に消したときに発動する。<br>
@@ -3014,17 +3228,19 @@ $('btnHelp').onclick = () => {
       アイテム枠の右上に現在の累積値または Lv が出る。
       <h3 class="sec">不思議な種</h3>
       ラウンド開始時に <b>${CONFIG.roundSeeds}個</b> 配られ、フルーツを消すと
-      ${Math.round(CONFIG.seedChance*100)}% で追加される。用途は2つ。<br>
+      ${Math.round(CONFIG.seedChance*100)}% で追加される。ストアで「取らずに次へ」を選んでも
+      <b>+${CONFIG.skipSeedReward}個</b> 手に入る。用途は3つ。<br>
       ・ストアを引き直す（${CONFIG.rerollCost}個）<br>
       ・<b>そのまま爆弾として使う</b>（${CONFIG.bombCost}個・ターンを消費せず周囲を消す）<br>
+      ・<b>即発アイテムと交換する</b>（${CONFIG.instantItemCost}個・枠を消費しない。ストア画面の🎫から）<br>
       ステージが変わると持ち越さずリセットされる。
 
       <h3 class="sec">アイテムとたからもの</h3>
       アイテムはそのステージ限り。ターン終了ごとに3択で1つ選ぶ。<br>
       たからものは永続で、${CONFIG.treasureSlots}つまで装備できる。
-      枠が満杯のときに新しく見つけたら、<b>入れ替える</b>か、
-      <b>重ねて強化する</b>（持っているものの Lv を +1、最大 Lv${CONFIG.treasureMaxLv}）かを選べる。
-      Lv が上がると効果もその倍率で伸びる。
+      <b>偶然同じたからものが再び出ると、自動で Lv が +1 される</b>（最大 Lv${CONFIG.treasureMaxLv}、
+      枠が満杯かどうかに関係なく強化される）。<br>
+      枠が満杯のときに違うたからものを見つけたら、<b>入れ替える</b>か<b>置いていく</b>かの二択になる。
     </div>
     <div class="row" style="margin-top:14px">
       <button class="btn" data-act="list">📖 図鑑を見る</button>
