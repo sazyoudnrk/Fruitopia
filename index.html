@@ -341,6 +341,7 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
 
   <div class="footbar">
     <button class="btn" id="btnBomb">💣 種で爆破</button>
+    <button class="btn" id="btnHarvest">🌾 一斉収穫</button>
     <button class="btn ghost" id="btnList">📖 図鑑</button>
     <button class="btn ghost" id="btnHelp">遊び方</button>
     <button class="btn ghost icon" id="btnOpt">⚙</button>
@@ -362,8 +363,18 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
    ゲーム内では ⚙ 設定の先頭に表示される。
    ========================================================================= */
-const VERSION = '0.53';
+const VERSION = '0.63';
 const CHANGELOG = [
+  ['0.63', 'ナーフに合わせて目標値を全面的に見直し（S1〜S5でクリア率8割前後、S12前後で3割に）／S8クリアで「国民の食糧難、解決！」の区切りを追加。S9以降は諸国を巡るエンドコンテンツに'],
+  ['0.62', 'にせものの罰を固定値から割合（基礎スコア-30%/Lv）に変更。何種類重ねてもマイナスにならないように／にせものは3種類までしか取れないように'],
+  ['0.61', 'にせものを複数持ったとき、主役のフルーツ同士が罰を撃ち合って盤面がマイナスに沈むのを修正（他のにせものの主役は罰の対象外に）／罰の重ね掛けに下限を設定'],
+  ['0.60', 'にせもの系の出現率上限が低すぎてLv2以降と品種台帳が完全に無効化されていたのを修正'],
+  ['0.59', '爆弾がターンを1消費するように／種5個で「一斉収穫」（選んだフルーツを盤面から全部収穫）を追加／大収穫の倍増を1ターン1回に制限（連鎖ごとに倍増して10^168倍まで膨張していた）／収穫帳と🔗マークの倍率に上限を追加'],
+  ['0.58', 'レアリティの基準を「常に効くか」に変更（特殊フルーツ専用はコモン、汎用強化をレアへ）／にせもの系が突出して強すぎたのを修正（単体で素の1000倍→7倍）／レア主力を強化（大収穫祭×2.5・複利の実×1.06・連鎖の記憶+0.2）'],
+  ['0.57', 'コモンをナーフ（収穫倍率を3連鎖条件つきに／肥料袋・りんご磨き・メロン用木箱・連鎖の記憶の素点を下げる）／累積アイテムの発動閾値を実際に到達する量へ調整（複利の帳簿60→15、銀の苗床80→30、錬金炉5→2、醸し壺30→12）'],
+  ['0.56', 'アイテムにレアリティを導入（コモン2：レア1／にせもの系はあえてコモン）／「レアだけを引き直す」を追加（通常のリロール代+3）／ただ強いだけのアイテムにデメリットを追加／デメリットが裏返るアイテム2種（借金証文・霜の倉）'],
+  ['0.55', '持ち越し枠の初期値を1に変更（種5個払うと2、以降25個・125個で拡張）'],
+  ['0.54', '収穫暦の刻みを +3/Lv から +1/Lv に緩和／たからものを選んだあと「持ち越すアイテム」の選択へ進むように／持ち越し枠を種で増やせるように（5→25→125個）'],
   ['0.53', '新アイテム7種を追加（区画整理・測量士・種泥棒・堆肥箱・焼き畑・閑古鳥・大物狙い）／図鑑に「レベル別の効果」表を追加'],
   ['0.52', '「国民を騙した報い」をスコア減少なし・制限ターンの減少のみに変更／連鎖の記憶の説明文が古い数値のままだったのを修正'],
   ['0.51', '黒フルーツが連鎖中に誤爆する問題を修正（4経路）／負倍率・にせもの系に「国民を騙した報い」ペナルティ／3×3で大収穫（基礎スコア2倍）／動かしたマスに特殊フルーツが生まれるように／種が出るフルーツに🌱表示／残りターンボーナスを収穫×0.1×残ターンに／クリア演出を長く／たからもの選択後そのままアイテム選択へ'],
@@ -423,7 +434,9 @@ const CONFIG = {
   chainMode:      'geometric', // 'geometric'（掛け算で伸びる） / 'linear'（足し算で伸びる）
   chainGrowth:    1.5,   // geometric時：1連鎖ごとに何倍になるか（少しナーフ済み）
   baseChain:      0.5,   // linear時：1連鎖ごとの加算量
-  chainCap:       0,     // 連鎖倍率の上限（0 で無制限）
+  chainCap:       200,   // 連鎖倍率の上限（0 で無制限）
+                          // 盤面が単色に寄ると1ターン60連鎖して倍率が10^10に達し、
+                          // 他のビルド軸と桁が合わなくなるため上限を設ける
   maxMiniFloats:  10,    // 1グループにつき、1個ずつのスコア表示を作る上限
                           // （出現率が極端に偏ると30個超の塊ができ、DOM生成が
                           //   膨大になって実機で重くなるため。スコア計算自体には影響しない）
@@ -432,7 +445,8 @@ const CONFIG = {
   seedChance:     1/18,  // 不思議な種の出現率。目安は「18個消えて1つ出るかも」＝通常プレイで3ターンに1個程度
   rerollCost:     1,     // リロールの種消費数
   roundSeeds:     3,     // ラウンド開始時に配られる種（ステージごとにリセット）
-  bombCost:       1,     // 爆弾1回に使う種の数
+  bombCost:       1,     // 爆弾1回に使う種の数（ターンを1消費する）
+  harvestBombCost:5,     // 特定フルーツを一斉収穫する爆弾に使う種の数
   treasureReroll: 5,     // たからものの引き直しに必要な種（1回ごとに +1）
   skipSeedReward: 2,     // ストアで「取らずに次へ」を選んだときに貰える種
   instantItemCost:3,     // 枠を取らない即発アイテム(once)を種と交換するコスト
@@ -446,10 +460,20 @@ const CONFIG = {
   bonusChance:    0.03,  // 即発アイテムが有効なときの、特別なフルーツの出現率
   turnFruitGain:  1,     // 時のフルーツを消したときに増える制限ターン
   multFruitGain:  0.1,   // 実りのフルーツを消したときに増える基本倍率
-  carryItems:     2,     // 次のステージへ持ち越せるアイテム数
+  carryItems:     1,     // 次のステージへ持ち越せるアイテム数（基本値・種で増やせる）
+  carrySlotCosts: [5, 25, 125],  // 持ち越し枠を1つ増やすのに必要な種（買うたびに次の値へ）
+  rarityWeight: {common:2, rare:1},  // ストアに並ぶ重み。コモン2:レア1の比率になる
+  rareRerollCost: 3,     // 「レア以上を引き直す」の追加コスト（通常のリロール代に加算）
   // --- 連鎖のマーク ---
   markChainStart: 3,     // このターン内で何連鎖に達したらマークが付き始めるか
   markBase:       0.1,   // 生まれたマークの固有倍率
+  fakePenaltyRate:0.3,   // にせもの1レベルにつき、対象外フルーツの基礎スコアが何割減るか
+  fakeMaxKinds:   3,     // 同時に持てるにせものの種類数
+  spawnMulCap:    4,     // 1フルーツに寄せられる出現率倍率の上限
+                          // （実際の偏りは spawnRateCap が最終的に抑える）
+  spawnRateCap:   0.45,  // 1フルーツが盤面で占められる出現率の上限（単色化の防止）
+  squareGain:     1,     // 大収穫1回で基礎スコア倍率にいくつ足すか（倍増ではなく加算）
+  markMulCap:     5,     // 🔗マークで1フルーツが得られる倍率の上限
   markStep:       0.05,  // 連鎖が起きるたびに固有倍率へ加算される量（線形）
   maxSlots:       10,    // 最大アイテム枠
   slotGain:       1,     // ステージクリアごとの枠増加
@@ -524,18 +548,51 @@ function fruitIconHTML(id, sizeCss){
 }
 const F = {}; FRUITS.forEach(f => F[f.id] = f);
 
+/* ============================================================================
+   レアリティ
+   common … 素直に効く。腐りにくいが、単体で伸びしろは小さい
+   rare   … 刺されば大きく伸びる。多くはデメリットや条件付きで、
+            ビルドが噛み合ったときだけ本領を発揮する
+   ========================================================================= */
+const RARITY = {
+  common: {n:'コモン', col:'#A3846C', mark:''},
+  rare:   {n:'レア',   col:'#B5730C', mark:'★'}
+};
+// レアに指定するID。ここに無いものは自動的に common になる。
+// にせもの系は強力だが、あえて低レア（引きやすい）に据え置く。
+// レアの基準は「どんなビルドでも常に効くか」。
+// 特殊フルーツ専用のアイテム（金・銀・虹・黒・爆弾）は、その特殊フルーツが
+// 出なければ何もしない＝条件付きなので、あえてコモンに置く。
+// 逆に、盤面の状況に関係なく毎ターン効くものほどレアにする。
+const RARE_IDS = new Set([
+  // 常時かかる倍率・基礎スコア（どんな盤面でも腐らない）
+  'x2','moon','scale','mirror','invert','balance','abyss','seedcharm','seedfoam',
+  // 全フルーツ・全連鎖に効く汎用強化
+  'chainm','sunfoc','clover','gamble','igniter','chainbox','ledger','longr',
+  // 複利・累積で伸び続けるもの
+  'compound','compoundharvest','compoundchain','sower','proctally','turntally',
+  // 盤面そのものを操作する強力なもの
+  'monopoly','pray','seedeat','seedthief',
+  // 条件が裏返って大きく化けるもの
+  'burnfield','lastcall','bigcatch','debtnote','frostvault','compost',
+  'survey','surveyor'
+]);
+function rarityOf(it){ return RARE_IDS.has(it.id) ? 'rare' : 'common'; }
+function isRare(it){ return rarityOf(it) === 'rare'; }
+
 /* ---------------- アイテム（§7） ----------------
    apply(c, s) : c = 集計コンテキスト / s = ゲーム状態
    late:true   : 他アイテムの集計結果を参照する（シナジー系）      */
 const ITEMS = [
   // --- スコア系 ---
-  {id:'fert',  n:'肥料袋',       ic:'🧺', tag:'スコア', d:'基礎スコア +5',
-    apply:c=>c.baseAdd+=5},
-  {id:'rake',  n:'黄金の熊手',   ic:'🪝', tag:'スコア', d:'基礎スコア +14',
-    apply:c=>c.baseAdd+=14},
+  {id:'fert',  n:'肥料袋',       ic:'🧺', tag:'スコア', d:'基礎スコア +3',
+    apply:c=>c.baseAdd+=3},
+  {id:'rake',  n:'黄金の熊手',   ic:'🪝', tag:'スコア',
+    d:'基礎スコア +14。ただし連鎖倍率の上昇量 -0.1（重い道具で連鎖が鈍る）',
+    apply:c=>{ c.baseAdd+=14; c.chainAdd-=0.1; }},
   {id:'chainm',n:'連鎖の記憶',   ic:'🌀', tag:'スコア',
-    d:`連鎖倍率の上昇量 +0.15（1連鎖ごと ${fmtMult(CONFIG.chainGrowth)} → ${fmtMult(CONFIG.chainGrowth+0.15)}）`,
-    apply:c=>c.chainAdd+=0.15},
+    d:`連鎖倍率の上昇量 +0.2（1連鎖ごと ${fmtMult(CONFIG.chainGrowth)} → ${fmtMult(CONFIG.chainGrowth+0.2)}）`,
+    apply:c=>c.chainAdd+=0.2},
   {id:'longr', n:'長蛇の列',     ic:'📏', tag:'スコア', d:'4個以上消しのボーナス +25',
     apply:c=>c.sizeAdd+=25},
   {id:'sunfoc',n:'太陽光集束',   ic:'🔆', tag:'スコア', d:'連鎖倍率の上昇量 +0.3／基礎スコア -6',
@@ -546,10 +603,12 @@ const ITEMS = [
     apply:(c,s)=>c.baseAdd+=3*Math.floor(s.stageCleared/50)},
 
   // --- 倍率系（正） ---
-  {id:'x15',   n:'収穫倍率',     ic:'✳️', tag:'倍率', d:'スコア倍率 ×1.5',
-    apply:c=>c.mults.push(1.5)},
-  {id:'x2',    n:'大収穫祭',     ic:'🎊', tag:'倍率', d:'スコア倍率 ×2',
-    apply:c=>c.mults.push(2)},
+  {id:'x15',   n:'収穫倍率',     ic:'✳️', tag:'倍率',
+    d:'3連鎖以上に到達したターンの スコア倍率の上昇量 +0.5',
+    apply:c=>c.chain3+=0.5},
+  {id:'x2',    n:'大収穫祭',     ic:'🎊', tag:'倍率',
+    d:'スコア倍率 ×2.5。ただしアイテム枠が1つ埋まったままになる（枠 -1）',
+    apply:c=>{ c.mults.push(2.5); c.slotAdd -= 1; }},
 
   // --- 倍率系（負・§8）単体では致命的だが、偶数個そろえると爆発する ---
   {id:'moon',  n:'逆さの月',     ic:'🌘', tag:'負倍率', neg:true, d:'スコア倍率 ×-1.5',
@@ -574,7 +633,7 @@ const ITEMS = [
     apply:c=>{ if(c.negCount>=2) c.mults.push(2.5); }, late:true},
   // ---- 大収穫（3×3）を軸にするアイテム ----
   {id:'survey', n:'区画整理',     ic:'🏗️', tag:'特殊', unique:true,
-    d:'3×3の大収穫で上がる倍率が 2倍 → 3倍 になる',
+    d:'3×3の大収穫で上がる量が2倍になる',
     apply:c=>c.squareMul+=1},
   {id:'surveyor',n:'測量士',      ic:'📐', tag:'スコア',
     d:'4個以上の塊で消したとき、その塊が正方形なら追加スコア +80',
@@ -600,6 +659,14 @@ const ITEMS = [
   {id:'bigcatch',n:'大物狙い',    ic:'🎣', tag:'特殊', unique:true,
     d:'5個以上の塊でしか収穫できないが、そのぶん基礎スコア +20',
     apply:c=>{ c.bigOnly=5; c.baseAdd+=20; }},
+
+  // ---- デメリットが裏返って報酬になるアイテム ----
+  {id:'debtnote',n:'借金証文',    ic:'📃', tag:'シナジー', unique:true,
+    d:'基礎スコア -20。ただし所持アイテムが5個以上なら、代わりに基礎スコア +50',
+    apply:(c,s)=>{ if(s.items.length>=5) c.baseAdd+=50; else c.baseAdd-=20; }, late:true},
+  {id:'frostvault',n:'霜の倉',    ic:'🧊', tag:'倍率', unique:true,
+    d:'スコア倍率 ×0.5。ただし残りターンが半分を切ると スコア倍率 ×4 に変わる',
+    apply:(c,s)=>c.mults.push((s.turnsMax - s.turns) * 2 <= s.turnsMax ? 4 : 0.5), late:true},
 
   {id:'abyss', n:'奈落の実り',   ic:'🕳️', tag:'シナジー', d:'負倍率アイテム1個につき基礎スコア +15',
     apply:c=>c.baseAdd+=15*c.negCount, late:true},
@@ -637,18 +704,20 @@ const ITEMS = [
 
   {id:'irrigation',n:'灌漑水路', ic:'💧', tag:'確率', d:'種の出現率 +8%',
     apply:c=>c.seedAdd+=0.08},
-  {id:'seedcharm',n:'種の護符', ic:'🧿', tag:'倍率', d:'いま持っている種1個につき スコア倍率の上昇量 +0.15',
-    apply:(c,s2)=>c.mults.push(1 + 0.15*s2.seeds)},
-  {id:'seedfoam',n:'種の泡',   ic:'🫧', tag:'倍率', d:'いま持っている種1個につき スコア倍率 ×1.06（掛け算で積み上がる）',
-    apply:(c,s2)=>c.mults.push(Math.pow(1.06, s2.seeds))},
+  {id:'seedcharm',n:'種の護符', ic:'🧿', tag:'倍率',
+    d:'いま持っている種1個につき スコア倍率の上昇量 +0.15（20個まで）',
+    apply:(c,s2)=>c.mults.push(1 + 0.15*Math.min(20, s2.seeds))},
+  {id:'seedfoam',n:'種の泡',   ic:'🫧', tag:'倍率',
+    d:'いま持っている種1個につき スコア倍率 ×1.06（掛け算で積み上がる／20個まで）',
+    apply:(c,s2)=>c.mults.push(Math.pow(1.06, Math.min(20, s2.seeds)))},
 
   // --- 種と爆弾（種はそのまま爆弾として使える） ---
   {id:'detonator',n:'起爆装置',   ic:'🎛️', tag:'特殊', d:'爆弾で消したフルーツのスコア倍率 ×2.5（レベルごとに+1.5）',
     apply:(c,s,it,once)=>once('detonator', ()=>{ c.bombMult *= 1 + 1.5*LV(it); })},
 
   // --- フルーツ固有効果系（§7.3） ---
-  {id:'apolish',n:'りんご磨き',  ic:'🍎', tag:'果実', d:'りんごのスコア +25',
-    apply:c=>c.fruitScore.apple=(c.fruitScore.apple||0)+25},
+  {id:'apolish',n:'りんご磨き',  ic:'🍎', tag:'果実', d:'りんごのスコア +14',
+    apply:c=>c.fruitScore.apple=(c.fruitScore.apple||0)+14},
   {id:'avow',  n:'りんごの誓い', ic:'❤️', tag:'果実', d:'りんごの効果率 +20%',
     apply:c=>c.fruitChance.apple=(c.fruitChance.apple||0)+0.20},
   {id:'squeez',n:'オレンジ絞り器',ic:'🍹',tag:'果実', d:'オレンジの効果率 +18%',
@@ -659,14 +728,15 @@ const ITEMS = [
     apply:c=>c.grapeBonus+=0.25},
   {id:'jam',   n:'いちごジャム', ic:'🍓', tag:'果実', d:'いちごのスコア +12／効果率 +12%',
     apply:c=>{c.fruitScore.straw=(c.fruitScore.straw||0)+12;c.fruitChance.straw=(c.fruitChance.straw||0)+0.12}},
-  {id:'crate', n:'メロン用木箱', ic:'📦', tag:'果実', need:'melon', d:'メロンのスコア +30',
-    apply:c=>c.fruitScore.melon=(c.fruitScore.melon||0)+30},
+  {id:'crate', n:'メロン用木箱', ic:'📦', tag:'果実', need:'melon', d:'メロンのスコア +18',
+    apply:c=>c.fruitScore.melon=(c.fruitScore.melon||0)+18},
   {id:'goldmold',n:'黄金の型',   ic:'🥇', tag:'特殊', unique:true, d:'4個そろえるだけで黄金のフルーツが生まれる',
     apply:c=>c.goldCut+=1},
   {id:'goldvein',n:'金鉱脈',     ic:'⛏️', tag:'特殊', d:'黄金のフルーツの爆発範囲 +1',
     apply:c=>c.goldRange+=1},
-  {id:'alchemy', n:'錬金術の書', ic:'📕', tag:'特殊', d:'黄金の爆発倍率の上昇量 +1.5（×2 → ×3.5）',
-    apply:c=>c.goldMultAdd+=1.5},
+  {id:'alchemy', n:'錬金術の書', ic:'📕', tag:'特殊',
+    d:'黄金の爆発倍率の上昇量 +1.5（×2 → ×3.5）。ただし基礎スコア -5',
+    apply:c=>{ c.goldMultAdd+=1.5; c.baseAdd-=5; }},
   {id:'silverhammer',n:'銀細工の鎚', ic:'🔨', tag:'特殊', d:'銀の虫食い数 +3',
     apply:c=>c.silverEatAdd+=3},
   {id:'silverscale', n:'白銀の天秤', ic:'🥈', tag:'特殊', d:'銀の爆発倍率の上昇量 +1（×1.5 → ×2.5）',
@@ -712,8 +782,8 @@ const ITEMS = [
     d:'1ターン経過するごとに 基礎スコア +3',
     apply:(c,s,it)=>c.baseAdd += 3*lv(it)},
   // 養殖系：盤面に特殊フルーツを自分で供給する
-  {id:'silvernursery', n:'銀の苗床', ic:'🌱', tag:'累積', track:'clear', every:80, unit:'個', reset:true,
-    d:'フルーツを80個消すごとに、盤面のランダムな1マスを銀にする',
+  {id:'silvernursery', n:'銀の苗床', ic:'🌱', tag:'累積', track:'clear', every:30, unit:'個', reset:true,
+    d:'フルーツを30個消すごとに、盤面のランダムな1マスを銀にする',
     apply:()=>{},
     fire: async () => {
       const pool = [];
@@ -726,8 +796,8 @@ const ITEMS = [
       await sleep(paced(T(520)));
       return 0;
     }},
-  {id:'alchemyfurnace', n:'錬金炉', ic:'⚗️', tag:'累積', track:'sp:silver', every:5, unit:'個', reset:true,
-    d:'銀を5個消すごとに、盤面のランダムな1マスを金にする',
+  {id:'alchemyfurnace', n:'錬金炉', ic:'⚗️', tag:'累積', track:'sp:silver', every:2, unit:'個', reset:true,
+    d:'銀を2個消すごとに、盤面のランダムな1マスを金にする',
     apply:()=>{},
     fire: async () => {
       const pool = [];
@@ -743,10 +813,10 @@ const ITEMS = [
 
   // 複利系：カウンターに対して指数で伸びる。序盤は誤差、後半で桁が変わる。
   {id:'compound', n:'複利の実', ic:'📈', tag:'累積', track:'proc', every:1, unit:'回',
-    d:'固有効果が1回発動するごとに スコア倍率 ×1.02（掛け算で積み上がる）',
-    apply:(c,s,it)=>c.mults.push(bnPow(1.02, lv(it)))},
-  {id:'compoundharvest', n:'複利の帳簿', ic:'📊', tag:'累積', track:'clear', every:60, unit:'個',
-    d:'フルーツを60個消すごとに スコア倍率 ×1.12（掛け算で積み上がる）',
+    d:'固有効果が1回発動するごとに スコア倍率 ×1.06（掛け算で積み上がる）',
+    apply:(c,s,it)=>c.mults.push(bnPow(1.06, lv(it)))},
+  {id:'compoundharvest', n:'複利の帳簿', ic:'📊', tag:'累積', track:'clear', every:15, unit:'個',
+    d:'フルーツを15個消すごとに スコア倍率 ×1.12（掛け算で積み上がる）',
     apply:(c,s,it)=>c.mults.push(bnPow(1.12, lv(it)))},
   {id:'compoundchain', n:'複利の渦', ic:'🌪️', tag:'累積', track:'chain', every:2, unit:'連鎖',
     d:'連鎖が2回起きるごとに スコア倍率 ×1.08（掛け算で積み上がる）',
@@ -758,8 +828,8 @@ const ITEMS = [
     fire: async () => { S.seeds += 2; hud(); toast('種まき機：種 +2'); return 0; }},
 
   {id:'grapeburst', n:'ぶどうの醸し壺', ic:'🍷', tag:'累積', need:'grape',
-    track:'fruit:grape', every:30, unit:'個', reset:true,
-    d:'ぶどうを30個消すごとに、盤面のぶどうを一斉消去',
+    track:'fruit:grape', every:12, unit:'個', reset:true,
+    d:'ぶどうを12個消すごとに、盤面のぶどうを一斉消去',
     apply:()=>{},
     fire: async (c, chainMul) => {
       const cells = [];
@@ -795,15 +865,33 @@ FRUITS.forEach(f => ITEMS.push({
   tag:'出現率',
   need:f.id,
   fake:f.id,                                   // 盤面書き換えの対象フルーツ
-  d:`${f.name}の出現率が2倍（レベルごとに+1倍）。${CONFIG.fakeInterval}ターンごとに盤面の${CONFIG.fakeCount}マスを${f.name}に変える`,
+  d:`${f.name}の出現率が1.5倍（レベルごとに+0.5倍）。${CONFIG.fakeInterval}ターンごとに盤面の${CONFIG.fakeCount}マスを${f.name}に変える。ただし他のフルーツの基礎スコアが ${Math.round(CONFIG.fakePenaltyRate*100)}% 減る`,
   apply:(c,s,it,once) => once('fake_' + f.id, () => {
-    c.spawnMul[f.id] = (c.spawnMul[f.id] || 1) * (1 + (1 + c.fakeBonus) * LV(it));
+    // 出現率の伸びを 1倍/Lv → 0.5倍/Lv に抑える。
+    // Lv3で盤面がほぼ単色になり、連鎖が延々と続いて他のアイテムを
+    // 圧倒していたため（単体で素の1000倍以上あった）。
+    const mul = Math.min(CONFIG.spawnMulCap, 1 + 0.5 * (1 + c.fakeBonus) * LV(it));
+    c.spawnMul[f.id] = (c.spawnMul[f.id] || 1) * mul;
+    // 偏らせた代償として、対象以外のフルーツは弱くなる。
+    // 固定値を引くとマイナスに沈んで「消すほど損」になるため、割合で減らす。
+    // 何種類重ねても 0 に近づくだけで、負の値にはならない。
+    // ただし「他のにせものが主役にしているフルーツ」は対象外にする
+    // （主役同士が撃ち合わないように）。
+    const protectedIds = new Set(s.items.filter(x => x.fake).map(x => x.fake));
+    const keep = Math.pow(1 - CONFIG.fakePenaltyRate, LV(it));
+    for(const o of FRUITS){
+      if(o.id === f.id || protectedIds.has(o.id)) continue;
+      c.fruitMul[o.id] = (c.fruitMul[o.id] || 1) * keep;
+    }
   })
 }));
 
 /* 収穫帳シリーズ：消すほどそのフルーツのスコア倍率が伸びる。全フルーツぶん自動生成。 */
 const TALLY_STEP = 10;    // 何個ごとに
 const TALLY_GAIN = 0.1;   // どれだけ倍率が上がるか
+const TALLY_CAP  = 30;    // 何段まで積めるか（上限 +3.0）
+                          // 上限がないと、盤面が単色に寄ったビルドで1ターンに
+                          // 数百個消えて倍率が青天井になり、他の軸と桁が合わなくなる
 FRUITS.forEach(f => ITEMS.push({
   id:'tally_' + f.id,
   n:f.name + 'の収穫帳',
@@ -813,8 +901,11 @@ FRUITS.forEach(f => ITEMS.push({
   track:'fruit:' + f.id,
   every:TALLY_STEP,
   unit:'個',
-  d:`${f.name}を${TALLY_STEP}個消すごとに ${f.name}のスコア倍率 ${fmtAdd(TALLY_GAIN)}`,
-  apply:(c, s, it) => { c.fruitMul[f.id] = (c.fruitMul[f.id] || 1) + TALLY_GAIN * lv(it); }
+  d:`${f.name}を${TALLY_STEP}個消すごとに ${f.name}のスコア倍率 ${fmtAdd(TALLY_GAIN)}（最大 ${fmtAdd(TALLY_GAIN*TALLY_CAP)}）`,
+  apply:(c, s, it) => {
+    const step = Math.min(TALLY_CAP, lv(it));
+    c.fruitMul[f.id] = (c.fruitMul[f.id] || 1) + TALLY_GAIN * step;
+  }
 }));
 
 /* ---------------- たからもの（§10） ----------------
@@ -846,7 +937,7 @@ const TREASURES = [
   treasure('bank','種銀行','🏦',
     v=>`ステージ開始時に種 +${2*v}`,                  c=>c.startSeeds += 2),
   treasure('cal','収穫暦','📅',
-    v=>`制限ターン +${3*v}`,                          c=>c.turnAdd += 3),
+    v=>`制限ターン +${v}`,                            c=>c.turnAdd += 1),
   treasure('spark','種火','🕯️',
     v=>`ステージ開始時にアイテム${v}個獲得`,          c=>c.startItems += 1),
   treasure('crown','黄金の王冠','👑',
@@ -861,20 +952,37 @@ const TREASURES = [
 function descOf(x){ return x.dl ? x.dl(LV(x)) : x.d; }
 
 /* ---------------- ステージ（§5） ---------------- */
+/* ステージ目標。S1〜S5はクリア率80%前後、S15前後で20%前後になるよう調整。
+   S1〜S8が「国民の食糧難を解決する」本編、S9以降が国外へ広げるエンドコンテンツ。 */
 const STAGES = [
-  {name:'村はずれの空き地', w:8, h:8,  turns:9,  target:6000,   fruits:5},   // 試験的に直接指定
-  {name:'朝もやの果樹園',   w:8, h:8,  turns:10, target:9600,   fruits:5},
-  {name:'石垣のいちご畑',   w:7, h:7,  turns:12, target:20400,  fruits:5},
-  {name:'風車のある丘',     w:8, h:8,  turns:15, target:42000,  fruits:6},
-  {name:'王立温室',         w:9, h:9,  turns:15, target:84000,  fruits:6},
-  {name:'痩せた岩の段々畑', w:6, h:6,  turns:15, target:78000,  fruits:5},
-  {name:'霧の大農園',       w:8, h:8,  turns:18, target:144000, fruits:6},
-  {name:'国営中央農場',     w:10,h:10, turns:21, target:270000, fruits:6}
+  {name:'村はずれの空き地', w:8, h:8,  turns:9,  target:1200,   fruits:5},
+  {name:'朝もやの果樹園',   w:8, h:8,  turns:10, target:2200,   fruits:5},
+  {name:'石垣のいちご畑',   w:7, h:7,  turns:12, target:4000,   fruits:5},
+  {name:'風車のある丘',     w:8, h:8,  turns:15, target:6000,   fruits:6},
+  {name:'王立温室',         w:9, h:9,  turns:16, target:9000,   fruits:6},
+  {name:'痩せた岩の段々畑', w:6, h:6,  turns:16, target:13000,  fruits:5},
+  {name:'霧の大農園',       w:8, h:8,  turns:18, target:19000,  fruits:6},
+  {name:'国営中央農場',     w:10,h:10, turns:21, target:28000,  fruits:6}
+];
+/* S9以降は自動生成。国民の食糧難を解決したあと、諸国へ広げていく段。
+   1段ごとに1.85倍。地力やたからものの成長を上回るペースにして、
+   S15前後でクリア率2割ほどに落ちるようにする。 */
+const OVERSEAS = [
+  '隣国トゥルペの荒野', '霜の国ネヴィアの温室', '砂の国サブリアの緑地',
+  '島嶼スカリアの段畑', '高原の国アルトの畑', '大陸連合の共同農場',
+  '極北の実験農場', '旧世界の遺構農園'
 ];
 function stageData(i){
   if(i < STAGES.length) return {...STAGES[i]};
   const last = STAGES[STAGES.length-1], over = i - STAGES.length + 1;
-  return {...last, name:`開拓地 ${over}`, target: Math.round(last.target * Math.pow(1.8, over))};
+  const name = OVERSEAS[(over - 1) % OVERSEAS.length];
+  const loop = Math.floor((over - 1) / OVERSEAS.length);
+  return {
+    ...last,
+    name: loop ? `${name} ${loop + 1}周目` : name,
+    turns: last.turns + Math.min(6, Math.floor(over / 2)),   // 少しずつターンも増やす
+    target: Math.round(last.target * Math.pow(1.85, over))
+  };
 }
 
 /* ============================================================================
@@ -884,6 +992,7 @@ const S = {
   stage:0, turns:0, turnsMax:0, harvest:0, target:0,
   seeds:0, items:[], treasures:[], slots:CONFIG.startSlots, lifetime:0, maxStage:0,
   baseMult:1, carriedMult:1, carryOver:[], fruitMark:{}, harvestBoost:1, discarded:0,
+  carrySlots:0,        // 種で買い足した持ち越し枠の数（永続）
   w:8, h:8, grid:[], fruitIds:[], stageCleared:0, counters:{},
   busy:false, sel:null, bombMode:false, uid:0, store:null, afterStore:null, storeRerolls:0,
   spd:(SPEEDS.find(s => s.id === DEFAULT_SPEED) || SPEEDS[1]).v
@@ -952,6 +1061,14 @@ async function runTriggers(c, chainMul){
    基準ライン自体も、クリアしたステージ数が進むごとに指数関数的に厳しくなる
    （soilStageGrowth倍/ステージ）。これにより、後半ステージのぶ厚い収穫量を
    ただ1回稼ぐだけで地力が際限なく伸び続ける、という事態を防ぐ。 */
+/* 実際に持ち越せるアイテム数。基本値に、種で買い足した枠を足す。 */
+function carryLimit(){ return CONFIG.carryItems + S.carrySlots; }
+/* 次の枠を買うのに必要な種。上限まで買うと null を返す。 */
+function nextCarryCost(){
+  return S.carrySlots < CONFIG.carrySlotCosts.length
+    ? CONFIG.carrySlotCosts[S.carrySlots] : null;
+}
+
 function soilThresholdBase(){
   return CONFIG.soilBase * Math.pow(CONFIG.soilStageGrowth, S.maxStage);
 }
@@ -1005,7 +1122,10 @@ function ctx(){
   c.baseAdd += CONFIG.soilGain * soilLevel();     // 永続成長ぶん
   if(S.baseMult !== 1) c.mults.push(S.baseMult);  // 基本倍率（実りのフルーツで育つ）
   // 連鎖のマークで育てたぶんを、そのフルーツの倍率に足す
-  for(const id in S.fruitMark) c.fruitMul[id] = (c.fruitMul[id] || 1) + S.fruitMark[id];
+  // 🔗マークで育てたぶん。1ターンに何十連鎖もするビルドでは青天井に伸びて
+  // 他の軸と桁が合わなくなるため、フルーツごとの上限を設ける。
+  for(const id in S.fruitMark)
+    c.fruitMul[id] = (c.fruitMul[id] || 1) + Math.min(CONFIG.markMulCap, S.fruitMark[id]);
   c.storeSize += Math.floor(S.stage / CONFIG.storeGrowth);
 
   // ---- 国民を騙した報い ----
@@ -1197,6 +1317,12 @@ function spawnTable(){
     });
     w[best] *= c.topSpawn;
   }
+  // どの経路で偏らせても、1種類が盤面を占める割合には上限を設ける。
+  // 単色に寄りすぎると連鎖が止まらなくなり、他のビルド軸と桁が合わなくなるため。
+  const wTotal = w.reduce((a,b) => a+b, 0);
+  const cap = CONFIG.spawnRateCap * wTotal;
+  for(let i=0;i<w.length;i++) if(w[i] > cap) w[i] = cap;
+
   const conv = c.convert
     .filter(cv => S.fruitIds.includes(cv.to))
     .map(cv => ({to:cv.to, p:Math.min(0.9, cv.p + c.convAdd)}));
@@ -1508,7 +1634,12 @@ function hud(){
       <span class="ic">${t.ic}</span><span class="nm">${t.n}</span></button>`;
   }).join('');
   $('btnBomb').disabled = S.seeds < CONFIG.bombCost || S.busy;
-  $('btnBomb').textContent = S.bombMode ? '💣 対象をタップ' : `💣 種で爆破 (🌱${S.seeds})`;
+  $('btnBomb').textContent = S.bombMode ? '💣 対象をタップ' : `💣 爆破 🌱${CONFIG.bombCost}`;
+  const hb = $('btnHarvest');
+  if(hb){
+    hb.disabled = S.seeds < CONFIG.harvestBombCost || S.busy;
+    hb.textContent = `🌾 一斉収穫 🌱${CONFIG.harvestBombCost}`;
+  }
 }
 
 function floatXY(gx, gy, text, color, o){
@@ -1886,6 +2017,7 @@ async function resolve(manual, swapCells){
   S._resolveStart = Date.now();      // 安全弁：この呼び出しからの経過時間を計る
   const c = ctx();
   let chain = 0, raw = 0, dyn = 0, procs = 0, seedGain = 0;
+  let squareDone = false;   // 大収穫は1ターンに1度だけ（連鎖ごとに倍増させない）
 
   while(true){
     // 金・銀の2個ペア判定は、手でスワップした直後の1回・かつそのスワップに
@@ -1979,16 +2111,22 @@ async function resolve(manual, swapCells){
       }
     }
 
-    // 3×3の正方形がそろっていたら「大収穫」。盤面全体の基礎スコアが倍になる。
+    // 3×3の正方形がそろうと「大収穫」。盤面全体の基礎スコア倍率が上がり、
+    // その効果はステージが終わるまで残り続ける。
+    //   ・1ターンに1度だけ（連鎖のたびに発動させない）
+    //   ・倍増ではなく加算（+1ずつ）
+    // どちらも、盤面が単色に寄ったビルドで青天井に膨らむのを防ぐための制限。
+    // 倍増だと12ターンで65536倍、連鎖ごとだと1ターンで10^168倍まで伸びた（実測）。
     for(const g of groups){
+      if(squareDone) break;
       const squares = findSquares(g);
-      for(const sq of squares){
-        S.harvestBoost *= (2 + c.squareMul);
-        const sx = sq % S.w, sy = (sq / S.w) | 0;
-        announce('大 収 穫 ！', 'var(--lantern)');
-        floatXY(sx + 1, sy + 1, `基礎スコア ×${S.harvestBoost}`, 'var(--lantern)', {cls:'grp'});
-        await sleep(paced(T(760)));
-      }
+      if(!squares.length) continue;
+      squareDone = true;
+      S.harvestBoost = Math.round((S.harvestBoost + CONFIG.squareGain * (1 + c.squareMul)) * 100) / 100;
+      const sq = squares[0], sx = sq % S.w, sy = (sq / S.w) | 0;
+      announce('大 収 穫 ！', 'var(--lantern)');
+      floatXY(sx + 1, sy + 1, `基礎スコア ×${S.harvestBoost}`, 'var(--lantern)', {cls:'grp'});
+      await sleep(paced(T(760)));
     }
 
     // まとめ消しの中心に特殊フルーツが残る（4個で銀、5個で黄金）
@@ -2226,10 +2364,81 @@ async function useBomb(idx){
   if(fuse.length) raw += await detonate(fuse, c, 1, undefined, null);
   S.harvest = bnAdd(S.harvest, finalScore(raw, staticMult(c), c));
   await gravity();
-  await resolve();                // 誘爆した連鎖も通常どおり処理（ターンは消費しない）
-  S.busy = false;
-  hud();
-  if(bnCompare(S.harvest, S.target) >= 0) await stageClear();
+  await resolve();
+  S.turns++;                      // 爆弾もターンを1消費する
+  await endTurn();
+}
+
+/* ---------------- フルーツ収穫爆弾（種5個） ----------------
+   選んだフルーツを盤面から一斉に収穫する。爆弾と同じくターンを1消費する。
+   ビルドの主軸を一気に刈り取るための、種の使いどころ。 */
+async function useHarvestBomb(fruitId){
+  S._resolveStart = Date.now();
+  const c = ctx();
+  if(S.seeds < CONFIG.harvestBombCost){ hud(); return; }
+  S.seeds -= CONFIG.harvestBombCost;
+  S.busy = true;
+  closeSheet();
+
+  const set = new Set();
+  for(let i = 0; i < S.w * S.h; i++){
+    const cell = S.grid[i];
+    if(!cell || cell.f !== fruitId) continue;
+    if(cell.sp === 'black' && !c.blackFuse) continue;   // 黒は手でマッチしたときだけ
+    set.add(i);
+  }
+  if(!set.size){
+    toast(`${F[fruitId].name}が盤面にない`);
+    S.seeds += CONFIG.harvestBombCost;                  // 空撃ちは種を返す
+    S.busy = false; hud(); return;
+  }
+
+  announce(`${F[fruitId].name} 一 斉 収 穫`, F[fruitId].color);
+  await sleep(paced(T(700)));
+
+  let raw = 0;
+  for(const i of set) raw += cellValue(S.grid[i], c);
+  const fuse = [...set].filter(i => S.grid[i] && S.grid[i].sp);
+  fuse.forEach(i => set.delete(i));
+  S.stageCleared += set.size;
+  await clearCells(set);
+  if(fuse.length) raw += await detonate(fuse, c, 1, undefined, null);
+  S.harvest = bnAdd(S.harvest, finalScore(raw, staticMult(c), c));
+  await gravity();
+  await resolve();
+  S.turns++;                      // こちらもターンを1消費する
+  await endTurn();
+}
+
+/* 収穫爆弾で狙うフルーツを選ぶ画面 */
+function openHarvestBomb(){
+  if(S.busy) return;
+  const counts = {};
+  for(const cell of S.grid) if(cell) counts[cell.f] = (counts[cell.f] || 0) + 1;
+  const c = ctx();
+  sheet(`
+    <h2>🌾 一斉収穫</h2>
+    <div class="sub">不思議な種を ${CONFIG.harvestBombCost} 個使って、選んだフルーツを盤面から
+      まとめて収穫します。ターンを1つ消費します。</div>
+    <div class="seedbar">
+      <span class="lbl">🌱 不思議な種</span>
+      <span class="num">×${S.seeds}</span>
+      <span class="cost">1回 ×${CONFIG.harvestBombCost}</span>
+    </div>
+    ${S.fruitIds.map(id => {
+      const n = counts[id] || 0;
+      const gain = Math.round(cellValue({f:id}, c) * n);
+      return `<button class="card" data-f="${id}" ${n ? '' : 'disabled style="opacity:.4"'}>
+        <span class="ic">${fruitIconHTML(id, '26px')}</span>
+        <span style="flex:1"><span class="t">${F[id].name}<span class="tag">${n}個</span></span>
+          <div class="d">${n ? `およそ ${fmtScore(gain)} の収穫（倍率をかける前）` : '盤面にありません'}</div></span>
+      </button>`;
+    }).join('')}
+    <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="c">やめる</button></div>
+  `, el => {
+    el.querySelectorAll('[data-f]').forEach(b => b.onclick = () => useHarvestBomb(b.dataset.f));
+    el.querySelector('[data-act="c"]').onclick = closeSheet;
+  });
 }
 
 /* ============================================================================
@@ -2259,19 +2468,56 @@ function giveItem(it){
   return lvl;
 }
 
-function rollStore(){
+/* rareOnly: true にすると、レア以上だけを候補にして引き直す（種を多めに払う代わり）。
+   レアが足りない場合は、残りをコモンで埋める。 */
+function rollStore(rareOnly){
   const c = ctx(), n = c.storeSize, pool = [];
   for(const it of ITEMS){
     if(it.once) continue;     // 枠を取らない即発アイテムは種と交換する専用ショップへ移動した
     if(it.unique && S.items.some(x => x.id === it.id)) continue;
     if(S.items.some(x => x.id === it.id && LV(x) >= CONFIG.itemMaxLv)) continue;
     if(it.need && !S.fruitIds.includes(it.need)) continue;
+    // にせものは種類数に上限がある。すでに上限まで持っているなら、
+    // 新しい種類は候補に出さない（重ねてレベルを上げるのは可）。
+    if(it.fake && !S.items.some(x => x.id === it.id)){
+      const kinds = new Set(S.items.filter(x => x.fake).map(x => x.fake));
+      if(kinds.size >= CONFIG.fakeMaxKinds) continue;
+    }
     pool.push(it);
   }
+  if(rareOnly){
+    const rares = pool.filter(isRare);
+    if(rares.length >= n){
+      const out = [];
+      const rest = rares.slice();
+      while(out.length < n && rest.length) out.push(...rest.splice(rnd(rest.length), 1));
+      S.store = out;
+      return;
+    }
+    // レアが足りないときは、あるだけ出してコモンで補う
+    const out = rares.slice();
+    const commons = pool.filter(x => !isRare(x));
+    while(out.length < n && commons.length) out.push(...commons.splice(rnd(commons.length), 1));
+    S.store = out;
+    return;
+  }
+  // レアリティで重み付けして引く（CONFIG.rarityWeight の比率どおりに出す）。
+  // 各レアリティの「種類数」がそのまま出現率になってしまわないよう、
+  // 1枚あたりの重みを「目標比率 ÷ そのレアリティの残り種類数」で決める。
+  // こうすると、レアの種類が何種あっても全体の比率は 2:1 に保たれる。
   const out = [];
   while(out.length < n && pool.length){
-    const i = rnd(pool.length);
-    out.push(pool[i]); pool.splice(i, 1);
+    const count = {};
+    for(const it of pool){ const r = rarityOf(it); count[r] = (count[r] || 0) + 1; }
+    const wOf = it => CONFIG.rarityWeight[rarityOf(it)] / count[rarityOf(it)];
+    let total = 0;
+    for(const it of pool) total += wOf(it);
+    let r = Math.random() * total, pick = pool.length - 1;
+    for(let i = 0; i < pool.length; i++){
+      r -= wOf(pool[i]);
+      if(r <= 0){ pick = i; break; }
+    }
+    out.push(pool[pick]); pool.splice(pick, 1);
   }
   S.store = out;
 }
@@ -2307,7 +2553,9 @@ function renderStore(discardMode){
     const maxed = own && LV(own) >= CONFIG.itemMaxLv;
     return `<button class="card ${it.neg?'neg':''} ${own?'on':''}" data-buy="${i}" ${maxed?'disabled style="opacity:.4"':''}>
        <span class="ic">${it.ic}</span>
-       <span style="flex:1"><span class="t">${it.n}<span class="tag">${it.tag}</span>
+       <span style="flex:1"><span class="t">${it.n}
+         ${isRare(it) ? `<span class="tag" style="border-color:${RARITY.rare.col};color:${RARITY.rare.col};font-weight:800">${RARITY.rare.mark}${RARITY.rare.n}</span>` : ''}
+         <span class="tag">${it.tag}</span>
          ${own ? `<span class="tag" style="border-color:var(--lantern);color:var(--lantern)">${
            maxed ? `Lv${LV(own)} 上限` : `Lv${LV(own)} → Lv${LV(own)+1}`}</span>` : ''}</span>
        <div class="d">${it.d}${own && !maxed ? '<br><b style="color:var(--lantern)">重ねると効果がもう一段ぶん乗る（枠は消費しない）</b>' : ''}</div></span>
@@ -2338,7 +2586,9 @@ function renderStore(discardMode){
     : '';
 
   const rerollCost = () => CONFIG.rerollCost + S.storeRerolls;
+  const rareCost = () => rerollCost() + CONFIG.rareRerollCost;
   const canReroll = S.seeds >= rerollCost();
+  const canRare = S.seeds >= rareCost();
 
   sheet(`
     <h2>${roundStart ? 'ラウンド開始' : '種を蒔く'}</h2>
@@ -2359,6 +2609,11 @@ function renderStore(discardMode){
         <button class="btn" data-act="reroll" ${canReroll ? '' : 'disabled'}>
           🌱 引き直す</button>
         <button class="btn ghost" data-act="skip">取らずに次へ（🌱+${CONFIG.skipSeedReward}）</button>
+      </div>
+      <div class="row">
+        <button class="btn" data-act="rareroll" ${canRare ? '' : 'disabled'}
+          style="${canRare ? `border-color:${RARITY.rare.col};color:${RARITY.rare.col}` : ''}">
+          ${RARITY.rare.mark} レアだけを引き直す（🌱${rareCost()}）</button>
       </div>
       ${full ? '<div class="sub" style="margin-top:8px;color:var(--bad)">枠が満杯です。取得すると手放すアイテムを選びます。</div>' : ''}
 
@@ -2392,6 +2647,14 @@ function renderStore(discardMode){
       S.seeds -= rerollCost();           // 残数は再描画で即座に反映される
       S.storeRerolls++;                  // 次のリロールはさらに+1個必要になる（ステージごとにリセット）
       rollStore(); renderStore(); hud();
+    };
+    const rr = el.querySelector('[data-act="rareroll"]');
+    if(rr) rr.onclick = () => {
+      if(S.seeds < rareCost()) return;
+      S.seeds -= rareCost();
+      S.storeRerolls++;
+      rollStore(true);                   // レアだけで引き直す
+      renderStore(); hud();
     };
     const sk = el.querySelector('[data-act="skip"]');
     if(sk) sk.onclick = () => {
@@ -2492,9 +2755,12 @@ function startStage(skipIntro){
     return;
   }
 
+  const overseas = S.stage >= STAGES.length;
   sheet(`
     <h2>${st.name}</h2>
-    <div class="sub">STAGE ${S.stage+1}</div>
+    <div class="sub">STAGE ${S.stage+1}${overseas ? ' ／ 国外編' : ''}</div>
+    ${overseas && S.stage === STAGES.length ? `<div class="doc" style="margin-bottom:8px;color:var(--candy)">
+      ここからは海の向こう。よその国の食糧難を解決していく。</div>` : ''}
     <div class="doc">
       <b>${st.turns + c1.turnAdd}</b> ターン以内に <b>${fmtScore(st.target)}</b> 収穫。<br>
       アイテムが手に入るのは <b>${Math.floor((st.turns + c1.turnAdd) * CONFIG.storePhase)}ターン目まで</b>。
@@ -2522,14 +2788,22 @@ async function stageClear(){
   announce('収 穫 達 成 ！', 'var(--lantern)');
   await sleep(T(1900));
 
+  // 本編の最終ステージを越えた瞬間だけ、物語の区切りを挟む
+  const finale = S.stage + 1 === STAGES.length;
+  if(finale){
+    await sleep(T(400));
+    announce('国民の食糧難、解決！', 'var(--candy)');
+    await sleep(T(2200));
+  }
+
   S.maxStage = Math.max(S.maxStage, S.stage + 1);
   S.slots = Math.min(CONFIG.maxSlots, S.slots + CONFIG.slotGain);
 
   // 持ち越すアイテムの既定選択：2個以下ならすべて、3個以上ならレベルの高い順に2個。
   // あとから「持ち越すアイテムを選ぶ」画面で変更できる。
-  S.carryOver = S.items.length <= CONFIG.carryItems
+  S.carryOver = S.items.length <= carryLimit()
     ? S.items.slice()
-    : S.items.slice().sort((a,b) => LV(b) - LV(a)).slice(0, CONFIG.carryItems);
+    : S.items.slice().sort((a,b) => LV(b) - LV(a)).slice(0, carryLimit());
 
   // 余ったターンと、持ち越されずに消えるアイテムをポイントに換算する
   // （地力・累計収穫量にも反映されるよう、lifetimeを確定させる前に加算する）
@@ -2575,9 +2849,18 @@ async function stageClear(){
   rollOffer();
 
   const nextStage = (skipIntro) => { S.stage++; closeSheet(); startStage(skipIntro === true); };
+  // たからものを選んだ直後の遷移。持ち越すアイテムがあるなら、その選択画面を
+  // 挟んでから次の農園へ進む（枠を種で増やすのもこの画面で行う）。
+  const afterTreasure = () => { if(S.items.length) drawCarry(true); else nextStage(true); };
   const head = `
-    <h2>収穫達成</h2>
+    <h2>${finale ? '国民の食糧難、解決！' : '収穫達成'}</h2>
     <div class="sub">${stageData(S.stage).name} ／ ${fmtScore(S.harvest)} 収穫</div>
+    ${finale ? `<div class="doc" style="margin:8px 0;padding:11px;border-radius:12px;
+      background:linear-gradient(180deg,#FFF1D2,#FFE4B0);border:1px solid var(--lantern)">
+      国じゅうの倉が実りで満ちた。もう飢える者はいない。<br>
+      ——だが、海の向こうにはまだ痩せた土地が広がっている。<br>
+      <b>次はよその国の食糧難を、この農園の実りで解決しにいこう。</b>
+    </div>` : ''}
     <div class="hud-bot" style="margin:0 0 10px">
       <div class="chip"><small>レベル</small><b>${S.stage + 1}</b></div>
       <div class="chip"><small>クリアターン</small><b>${S.turns} / ${S.turnsMax}</b></div>
@@ -2587,7 +2870,7 @@ async function stageClear(){
       ${bnCompare(itemBonus,0)!==0 ? `持ち越されない${lostItems.length}個のアイテムをポイント換算 <b style="color:var(--lantern)">+${fmtScore(itemBonus)}</b><br>` : ''}
       アイテム枠が <b>${Math.min(CONFIG.maxSlots, S.slots)}</b> に増えた。<br>
       ${S.items.length === 0 ? ''
-        : S.items.length <= CONFIG.carryItems
+        : S.items.length <= carryLimit()
           ? `アイテムは全て（${S.items.length}個）次の農園へ連れていく。<br>`
           : `アイテムのうち <b>${S.carryOver.length}</b> 個を次の農園へ連れていく（下のボタンで選び直せる）。<br>`}
       ${S.baseMult > 1 ? `基本倍率 <b>×${S.baseMult}</b>${carryFrac > 0
@@ -2637,8 +2920,8 @@ async function stageClear(){
           <span class="ic">${t.ic}</span><span class="t">${t.n}</span>
           <span class="d">${descOf(t)}</span>
           ${LV(t) > 1 ? `<span class="lv">Lv${LV(t)}</span>` : ''}</div>`).join('')}</div>` : ''}
-      ${S.items.length > CONFIG.carryItems ? `<div class="row" style="margin-top:10px">
-        <button class="btn" data-act="carry">🎒 持ち越すアイテムを選び直す（${S.carryOver.length} / ${CONFIG.carryItems}）</button>
+      ${S.items.length ? `<div class="row" style="margin-top:10px">
+        <button class="btn" data-act="carry">🎒 持ち越しアイテムと枠（${S.carryOver.length} / ${carryLimit()}）</button>
       </div>` : ''}
       <div class="row" style="margin-top:10px">
         <button class="btn" data-act="map">🗺️ マップ</button>
@@ -2647,7 +2930,7 @@ async function stageClear(){
     `, el => {
       el.querySelector('[data-act="map"]').onclick = () => openMap(draw);
       const cr = el.querySelector('[data-act="carry"]');
-      if(cr) cr.onclick = drawCarry;
+      if(cr) cr.onclick = () => drawCarry(false);
       const rr = el.querySelector('[data-act="reroll"]');
       if(rr) rr.onclick = () => {
         if(S.seeds < rerollCost()) return;
@@ -2668,10 +2951,10 @@ async function stageClear(){
           own.level = nl;
           toast(maxed ? `${t.n} は上限に達している` : `${t.n} が Lv${nl} になった`);
           hud();
-          nextStage(true);          // 続けてアイテム選択へ
+          afterTreasure();          // 続けて「持ち越すアイテム」の選択へ
         } else if(S.treasures.length < CONFIG.treasureSlots){
           S.treasures.push({...t, level:1});
-          nextStage(true);          // 続けてアイテム選択へ
+          afterTreasure();          // 続けて「持ち越すアイテム」の選択へ
         } else {
           handle(t);   // 新しいたからもの、かつ枠が満杯 → 入れ替えるか捨てるかのみ
         }
@@ -2681,11 +2964,11 @@ async function stageClear(){
   };
 
   // ---- 次のステージへ持ち越すアイテムを選ぶ ----
-  const drawCarry = () => {
+  const drawCarry = (thenNext) => {
     const picked = i => S.carryOver.includes(S.items[i]);
     sheet(`
       <h2>アイテムを持ち越す</h2>
-      <div class="sub">最大 ${CONFIG.carryItems} 個まで（${S.carryOver.length} / ${CONFIG.carryItems}）。
+      <div class="sub">最大 ${carryLimit()} 個まで（${S.carryOver.length} / ${carryLimit()}）。
         レベルの高い順に既定で選ばれています。タップで選び直せます。</div>
       ${S.items.map((it,i) => `
         <button class="card ${it.neg?'neg':''} ${picked(i)?'on':''}" data-pick="${i}">
@@ -2696,21 +2979,42 @@ async function stageClear(){
             <div class="d">${it.d}</div></span>
           <span class="chk">✓</span>
         </button>`).join('')}
-      <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
-        累積アイテムのカウンターはステージが変わるとリセットされます。
+      <div class="seedbar">
+        <span class="lbl">🌱 不思議な種</span>
+        <span class="num">×${S.seeds}</span>
+        <span class="cost">${nextCarryCost() === null
+          ? '枠は上限です'
+          : `次の枠 ${nextCarryCost()}個`}</span>
       </div>
-      <div class="row" style="margin-top:12px"><button class="btn primary" data-act="c">決定</button></div>
+      ${nextCarryCost() !== null ? `<button class="btn" data-act="buy"
+        ${S.seeds < nextCarryCost() ? 'disabled' : ''} style="width:100%">
+        🎒 持ち越し枠を1つ増やす（🌱${nextCarryCost()}）</button>` : ''}
+      <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
+        累積アイテムのカウンターはステージが変わるとリセットされます。<br>
+        増やした持ち越し枠はこの先ずっと使えます（種は次の農園へ持ち越せません）。
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn primary" data-act="c">${thenNext ? '次の農園へ' : '決定'}</button></div>
     `, el => {
       el.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
         const it = S.items[+b.dataset.pick];
         const at = S.carryOver.indexOf(it);
         if(at >= 0) S.carryOver.splice(at, 1);
-        else if(S.carryOver.length < CONFIG.carryItems) S.carryOver.push(it);
-        else toast(`持ち越せるのは ${CONFIG.carryItems} 個までです`);
-        drawCarry();
+        else if(S.carryOver.length < carryLimit()) S.carryOver.push(it);
+        else toast(`持ち越せるのは ${carryLimit()} 個までです`);
+        drawCarry(thenNext);
       });
-      el.querySelector('[data-act="c"]').onclick = draw;
-    }, draw);
+      const buy = el.querySelector('[data-act="buy"]');
+      if(buy) buy.onclick = () => {
+        const cost = nextCarryCost();
+        if(cost === null || S.seeds < cost) return;
+        S.seeds -= cost;
+        S.carrySlots++;
+        hud();
+        toast(`持ち越し枠が ${carryLimit()} に増えた`);
+        drawCarry(thenNext);
+      };
+      el.querySelector('[data-act="c"]').onclick = () => thenNext ? nextStage(true) : draw();
+    }, () => thenNext ? nextStage(true) : draw());
   };
 
   // ---- 枠が満杯・かつ新規（重複ではない）たからものを見つけたときの処理 ----
@@ -2732,7 +3036,7 @@ async function stageClear(){
         el.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
           S.treasures[+b.dataset.pick] = {...t, level:1};
           hud();
-          nextStage(true);          // 続けてアイテム選択へ
+          afterTreasure();          // 続けて「持ち越すアイテム」の選択へ
         });
         el.querySelector('[data-act="back"]').onclick = () => handle(t);
       }, () => handle(t));
@@ -2787,7 +3091,7 @@ function stageFail(){
 
 function newGame(){
   S.stage = 0; S.slots = CONFIG.startSlots; S.treasures = []; S.uid = 0;
-  S.lifetime = 0; S.maxStage = 0;
+  S.lifetime = 0; S.maxStage = 0; S.carrySlots = 0;
   startStage();
 }
 
@@ -2870,7 +3174,7 @@ function saveText(){
   return JSON.stringify({
     v:VERSION,
     stage:S.stage, maxStage:S.maxStage, slots:S.slots, seeds:S.seeds,
-    lifetime:S.lifetime, spd:S.spd, carriedMult:S.carriedMult,
+    lifetime:S.lifetime, spd:S.spd, carriedMult:S.carriedMult, carrySlots:S.carrySlots,
     items:S.items.map(i => [i.id, LV(i)]),
     treasures:S.treasures.map(t => [t.id, LV(t)])
   });
@@ -2890,6 +3194,7 @@ function loadText(txt){
   S.slots    = Math.min(CONFIG.maxSlots, Math.max(1, o.slots | 0 || CONFIG.startSlots));
   S.lifetime = bnCompare(toBN(o.lifetime || 0), 0) > 0 ? toBN(o.lifetime || 0) : bn(0);
   S.carriedMult = Math.max(1, +o.carriedMult || 1);
+  S.carrySlots = Math.min(CONFIG.carrySlotCosts.length, Math.max(0, o.carrySlots | 0));
   S.carryOver = [];
   if(o.spd) { S.spd = +o.spd; applySpeed(); }
 
@@ -3101,9 +3406,11 @@ function openCatalog(back){
     const cls = [kind === 'tre' ? 'tre' : (x.neg ? 'neg' : ''), n ? 'on' : ''].filter(Boolean).join(' ');
     const gate = x.need ? `<span class="tag">${F[x.need].name}が出るステージのみ</span>` : '';
     const uniq = x.unique ? `<span class="tag">1個まで</span>` : '';
+    const rare = kind === 'item' && isRare(x)
+      ? `<span class="tag" style="border-color:${RARITY.rare.col};color:${RARITY.rare.col};font-weight:800">${RARITY.rare.mark}</span>` : '';
     return `<div class="card ${cls}">
       <span class="ic">${x.ic}</span>
-      <span style="flex:1"><span class="t">${x.n}${gate}${uniq}
+      <span style="flex:1"><span class="t">${x.n}${rare}${gate}${uniq}
         ${mine && LV(mine) > 1 ? `<span class="tag">Lv${LV(mine)}</span>` : ''}</span>
         <div class="d">${mine ? descOf(mine) : x.d}</div></span>
       <span class="chk">${n > 1 ? '×' + n : '✓'}</span>
@@ -3125,8 +3432,10 @@ function openCatalog(back){
 
   sheet(`
     <h2>図鑑</h2>
-    <div class="sub">アイテム ${ITEMS.length} 種 ／ たからもの ${TREASURES.length} 種 ／ フルーツ ${FRUITS.length} 種<br>
-      所持中のものは金色の枠と ✓ が付きます。</div>
+    <div class="sub">アイテム ${ITEMS.length} 種（うち${RARITY.rare.mark}レア ${ITEMS.filter(isRare).length} 種）
+      ／ たからもの ${TREASURES.length} 種 ／ フルーツ ${FRUITS.length} 種<br>
+      所持中のものは金色の枠と ✓ が付きます。
+      ${RARITY.rare.mark}レアは出にくい代わりに、噛み合うと大きく伸びます。</div>
 
     ${byTag}
     ${misc.length ? `<h3 class="sec">その他</h3>` + misc.map(i => card(i,'item')).join('') : ''}
@@ -3467,6 +3776,7 @@ document.addEventListener('click', e => {
   draw();
 });
 
+$('btnHarvest').onclick = () => { if(!S.busy) openHarvestBomb(); };
 $('btnBomb').onclick = () => {
   if(S.seeds < CONFIG.bombCost || S.busy) return;
   S.bombMode = !S.bombMode;
@@ -3579,9 +3889,11 @@ $('btnHelp').onclick = () => {
       使い切りか、数ターンで効き目が切れるアイテム。枠の右上に残りターンが出る。
       使い切りのものは枠を消費せず、取った瞬間に効果だけ出て消える。
       <h3 class="sec">持ち越し</h3>
-      ステージクリア時に、アイテムを最大 ${CONFIG.carryItems} 個まで次の農園へ連れていける。
-      ${CONFIG.carryItems}個以下ならすべて自動で持ち越され、それを超える場合は
-      レベルの高い${CONFIG.carryItems}個が既定で選ばれる（あとから選び直せる）。
+      ステージクリア時に、アイテムを最大 ${carryLimit()} 個まで次の農園へ連れていける。
+      ${carryLimit()}個以下ならすべて自動で持ち越され、それを超える場合は
+      レベルの高い${carryLimit()}個が既定で選ばれる（あとから選び直せる）。
+      持ち越し枠は、その画面で不思議な種を払うと増やせる
+      （${CONFIG.carrySlotCosts.join('個 → ')}個）。枠は次の農園にも引き継がれる。
       基本倍率はたからもの「継承の苗木」があれば一部を持ち越せる。
       <h3 class="sec">特殊フルーツ</h3>
       まとめて消した数に応じて、その塊の中心にフルーツが1つ残る。次に消したときに発動する。<br>
@@ -3620,7 +3932,8 @@ $('btnHelp').onclick = () => {
       ${Math.round(CONFIG.seedChance*100)}% で追加される。ストアで「取らずに次へ」を選んでも
       <b>+${CONFIG.skipSeedReward}個</b> 手に入る。用途は3つ。<br>
       ・ストアを引き直す（${CONFIG.rerollCost}個から。引き直すたびに+1、ステージが変わるとリセット）<br>
-      ・<b>そのまま爆弾として使う</b>（${CONFIG.bombCost}個・ターンを消費せず周囲を消す）<br>
+      ・<b>そのまま爆弾として使う</b>（${CONFIG.bombCost}個・ターンを1消費して周囲を消す）<br>
+      ・<b>一斉収穫</b>（${CONFIG.harvestBombCost}個・ターンを1消費して、選んだフルーツを盤面から全部収穫する）<br>
       ・<b>即発アイテムと交換する</b>（${CONFIG.instantItemCost}個・枠を消費しない。ストア画面の🎫から）<br>
       ステージが変わると持ち越さずリセットされる。
 
