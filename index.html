@@ -4,7 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>フルーツ農園ビルドパズル</title>
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- ホーム画面に追加したときの名前。iOSはこちらを優先して使う -->
+<meta name="apple-mobile-web-app-title" content="Fruitopia">
+<meta name="application-name" content="Fruitopia">
+<meta name="theme-color" content="#FFF6E9">
+<title>Fruitopia</title>
+
+<!-- ホーム画面のアイコン（ゲーム内のりんごのドット絵をそのまま使用）。
+     単一HTMLで完結させるため、外部ファイルではなくデータURLで埋め込む。 -->
+<link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAE4ElEQVR4nO3dQW4TSxSF4U6UYGWQQTLIUhghsYAsgRVkA5kC02yAFWQJLACJUXYCgzBAIjKODINCJdP2Sbvbbte51f83e9ZLnp/4dW+54uCjP7++NcAmx6WfAHwRByTigEQckIgDEnFAIg5IxAGJOCARByTigEQckIgDEnFAIg5IxAGJOCARByTigEQckIgDEnFAIg5IxAGJOCARByTigEQckIgDEnFAIg5IxAGJOCARByTigEQckIgD0knpJ2BgdtEcn7YfXC6a+Y8Sz8YIcTSpjNvPn/IDd9c3G3KZHtYKJOKARByQOHP0d3zSzC57f9X8sVk+j/BsRsTk6G9AGYO/qigmx0Crr2463V3fjPdMxkMcW9h4ETLA2dV///j0fQ/fc0zEsYW1i5C+Wl8bZZAQhzbs4Lm9NEiMD6ocSLXT83r+K4MwObSdt4mSv6f5PT2TAxJxQGKtbDDGKomoojiG3UYsF+uPbXypucdieCl7cKmM1+96fMnDffnz4Pyx8BPQKopj7/INZutmc+/f31XAOPZ1md1phyaiLI6XHcX7ROr0Z9ZrfXS5ff+m9cjdx687fceH+45/IcJ7VCNMjoONijEY3453ihDHmGW0ZsauA2Pd7NL/bKFEiKPZ8xI5hPSEO5eLN+M4xv6h6MHY//RVMb4+r6OMLOD/jvHkSMItlFX5ycfcL/Zx1IS3CWKD1vwLMkj84jg+aU7PA19sbM/+oOp3Q9qavaHPHEprcrjuF9c4qmxiXarENQ6ntRL6mrxGTvcclGHGaXI0k9kmQZjFMU3pmOX3Q3ziKGr1CtVvqxrEUc0P2HZ3dmU1PwwOpMa/D1iA0/wwuOeY1MVGp4d7n2sPg8kBVwZnjhr9/vKh9cirt+1H/DE5IJWbHFyW2ysXx4DfXowsLZpYy4W1Aok4IJW755jG9cb6y5ZE7hfuORACcUAiDkjEAYk4IBEHJOKAxE9lD4rrc1SCOCARByTigEQckIgDEnFA4p5jXPliQ72xwxmTAxKT40A67kYt/wo5JoeZTZ8cVQqTw4nNu0cTJgck4oBUeq3kg1jtv6MQUbnJYfypiEjKxbF8bp6+ux3BsKr0Wpk4y+uNjDhGkS/Lt31f4HLRLH6O9nQGIg4DrruVl7KQiAOSzVpJR7OJ3HZ4n0Mzgzjmj/X9DcY9fj/F+L7HII504dGsfUZT9VzPoRlnDkjEAYk4IBn8xfjZ6pmj1pctq69T7M8cBgfSbCLHUvsmMqc4VvE+DwN+Zw6nd9hOnN/kyB9iVf1+sed0IG2p6Xwa6hya+a2VzPheebhQS9NvrWT1XavHmRmJ8VrJ4u6X1W3i9JmgWzJeK1moUSz5vQuwk/FayaK/fom2TbIIayULtF/yQgm4TbIIkyOLdT4NOzCyUJMjeTmOIhNl49v+4scR4UDaEuL+o4pDdKi1kuT7j5bi6yb+qGgJuFaUHePYZh+9/K7x6uIIuFaUsusmxLLrKeBaUdS66dR35FQ3IZSK1spgs4t/n52+jcj3Fn1VNDkGm8wfdl8VnTmwb8QBiTggEQck4oBEHJCIAxJxQCIOSMQBiTggEQck4oBEHJCIAxJxQCIOSMQBiTggEQck4oBEHJCIAxJxQCIOSMQBiTggEQck4oBEHJCIAxJxQCIOSMQBiTggEQck4oD0FzlSHzOitxEfAAAAAElFTkSuQmCC">
+<link rel="icon" type="image/png" sizes="192x192" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAFJ0lEQVR4nO3dP27UQBiGcWeVDUqRAoochQqJA3AETpAL0BLaXIATcAQOgETFTaAIRSSiZaOFwmiwvP/see31946fXwURiYx4mG/G3mTP/vz6XgG5FlNfALwRECQEBAkBQUJAkBAQJAQECQFBQkCQEBAkBAQJAUFCQJAQECQEBAkBQUJAkBAQJAQECQFBQkCQEBAkBAQJAUFCQJAQECQEBAkBQUJAkBAQJAQECQFBQkCQEBAkBAQJAUFCQJAQECQEBAkBQXI+9QWE9Ox5tVi2P7hZV6ufU1xNaAS0y2JZVdW7zx/TB+7e3OxICowwiAgIEgKChD3QQBbn1bMXvT9rs67WD9XmaYQLOhFWoIEsr3I+a7HM/MQwWIEGsnVw66KAwx0BZVmcV8urwf7tL6///9rtbhMBZcnY7nTktiARUL6+A+voV7h7cyN+wdMjoJ52PuUYVj3RVvcWpzNOYT2dbMSMNyUHxQrUmz65jn5lo1nGCtRH87iEqqoICCJGWCfjjS135QaUfVx6/LH9sZ2bksGrMtr6JOUGVNfz8m2/z/r2aYxrybG6n/oKOik3oDGkxWnU3fSuJTAs84DGuK13IA6tG8cJddTZn1/fp74GQf0v2ndOdfDu/avWR+4+fFW/aJf5yMPUcZ3gScJpmDypOMrtPlAZ9VS5L0CLx22EXV6PMbCSUSbXtnqWWW2W9zEZYXmvOA7u8prXRJ9KefXUFkv3v5rJClQbc3idVPqLxLlvmcsqoFI5vybaZITNh9sxkxVoUq2hbDjRYgdU5OHrKKvXRMe+D9R69lTMJnqf1grkcKPIIaDiu9nmc6cx5Agr5oHXDIQ8hVGPj5ArUG2Gk8tQ4IBQbwFj31okoJCazzpiD/SQeyD4iLQCcfjaJ/Asi3QfaLZ3fbqIemeIEQYJAUESaQ80A7+/3DZ/e/H6dvef8xEjILbPtmIENNd60oLkuxTFCKji8OWKTTQkMe4DjfztggG1dtPJ3lnGfSAUiYAgISBICAgSAoKEgCAhIEgICJIwjzLmzfdZGCsQJAQECQFBQkCQEBAkBAQJAUFCQNO4eH3re++niYAgISBIeJQxpeNTrPljNzfrMa8lEwE5iPda+oQRBgkBQUJAkITZA6Xd4sy+w9AdKxAkMQJ6/BH5oIEDwowwNPm87xMBnVTODwRa3Y9zLcMgoMAcxnqMPRBsERAkBARJvD3QnO8o+hy+kkgBre6r5VXZP7G1mMNXEimgzdO/NxNpvdfu3DgcvhL2QJAQECQEBEmMnxPd0nrrjDkcx5rnL6s9UKRNdJLel29Wu2mrbpKQAbXM+c5QeLH3QCG/kQVNsVegec4yKyE30duaAZU0yGz3zknsEZaY3NfPZzusY4+wZPP07z9okbPMc+2pmYywpIxZ1nrq7hyQyQhLbJf63TZr9+lsMsKSks5lzgtP4jbCEsdZVtDkStxGWOI+y8wnV+I2whLfl54VsfAktiOs1npuv23C6bbzBc6b9f9tXBFsR1ht/WA2y9YPU1/BwGxHWC29jHpbkOlW1sDaZj7CDjg63Y7qOP4Ofy9O6QGZr0AHKFuNjNWr9FD2Md8DYWrljjBF3/FX3Nmqu3JHmGKuNWRghEFCQJAQECQEBAkBQUJAkBAQJAQECQFBQkCQEBAkBAQJAUFCQJAQECQEBAkBQUJAkBAQJAQECQFBQkCQEBAkBAQJAUFCQJAQECQEBAkBQUJAkBAQJAQECQFBQkCQEBAkBAQJAUFCQJAQECQEBMlfDQgimvo1sM0AAAAASUVORK5CYII=">
+<link rel="icon" type="image/png" sizes="512x512" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAIAAAB7GkOtAAAMaUlEQVR4nO3dQW5UVxqA0YtlI2XAlKVk1BIL6CVkBb2BTJtMs4FeQZbQC4iUUXYCEwaWQKRQ0YNqETAuqLLr1Xv1vnNGids0D2L5q//WvddPPr59NQDouZr7AQCYhwAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAEDU9dwPAFO6uh5jjJtn4+rmuF+43YzN7RhjbD+c/qlgGUwAAFEmAFbt5tkY4+iX/7tfsvu179+c+JFgMQSAVXvAt/6T/Fq4BJaAAKJMAIT8/N//fPdzfv3nv87wJLAEJgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgngeEsHnwx9XRceZ1nAgCIMgHAWTz4YurpuPI6zwQAEGUCgLNY1Gv/T5b5VJyLAMAMDrmYejquvGbHEhBAlAAARFkCgoe6ul7i3p4H+OH59z9nuxljjM2tQwNrYgIAiBIAeKjdsd5Lf/l/oN2fdDfxsBYCAA8V+db/ueAfedUEACDKm8BwAvPu6z/WsU/r3MBamQAAogQAIMoSEHzPAq/yn9GdQwN+qMAlEwD4nnWc9pqIO6UvmSUggCgTAHyP1/7f5u/nYgkAHOeydnyexL1/ZHtDV8ASEECUAABECQB80yFXJcNlEgCAKAEAiBIAgCgBAIhyDgC+ENzmT5YJACBKAACiLAHxOAu8KtkFxXAYAeBxFnhV8uMuKH7YFTfrfufAtT9rZQkIIMoEwOMs6rX/J8t8qrXabuZ+Ah7IBAAQZQLgpH78ac7f/c/f5vzdmz695c4FEgD4pnev9/5PzYtCv/EXwqWxBAQQZQIIW+AW/tM6ySv05st8GgQgbIFb+HkoW/V5AEtAAFEmgDCv/U/n11/+mPkJzjMB2PK/Lk8+vn019zMwkzur2/Pu4JzYz//+x1GfP/839GNNvQV2961/c+uGpTWxBAQQZQkI1shufQ4gAOtydW1vD2N8ub5n9YY9LAEBRAnAuuxOdXn5z+d2XxK70RA+YwloXXzrP3LDz+Xt9nkwXxt8xQQAEGUCWLVVb+3nC/v+W7sim/1MAABRAgAQZQnoMq3+JmemcOfyj08/zMv5gCoBuExOe/F4n/aGvn8z96MwD0tAAFEmgMvktT8n4QupTQBWwXZP9rn3a8PeUMYYloAAsgQAIMoSEOTd2R56L3dKr5EJACBKAIADuFN6jQQAOJhto+siAABR3gSGnmMPjjg3sFImAIAoAQCIsgS0eFfX7v5kQdwpvSImAIAoE8Di+akvLJkfKnDJBGDxfPc/0q+//DH3I8T4Er1YloAAop58fPtq7mfgmz5/z829/yzHncMB717P9Bw8nAkAIEoAAKK8CbwYV9dj2PMDnI8ALIbTXsB5WQICiDIBLIbX/sB5CcBS2fEJTMwSEECUAABEWQICTuHzI+vbzRhjbG7dEb1wJgCAKAEATu3q5u9rolkwAQCmYWfz4gkAQJQ3gYEH2XdU5c410SyYCQAgSgAAoiwBnd2na5+Hd8lYu88PB4wxtpuxuR1jOB+wEAJwdr71k/Vpb+j7N3M/CmNYAgLIMgGcndf+lPn6X5InH9++mvsZYu6sirr2mYI7e0PfvZ7pOfiCJSCAKAEAiBIAgCgBAIgSAIAoAQCIcg4A1uOv318e/slPXxzxyaySCQAgSgAAogQAIMp7AFO6unb3J7BYJgCAKBPAlG6eee0PLJYATMl3fxbs3j2j9oamWAICiDIBnIt7/4GFMQEARAkAQJQAAEQJAECUAABEPfn49tXcz7BePzz/+5/tAmImR90Rvc9jzwf8+dsX//ru9aP+3zgREwBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJQAAERdz/0AwII8ffFy7kfgfEwAAFECABAlAABRAgAQJQAAUQIAECUAAFECABAlAABRAgAQJQAAUQIAECUAAFECABAlAABRAgAQJQAAUQIAECUAAFECABAlAABR13M/ADCtpy9e3vvxv36//+N0mAAAogQAIEoAAKIEACBKAACiBAAgyjZQ4KT+/G3uJ+BQAgBR+84HTGu7meE3ZQ9LQABRJgDgXLabsbmd+yH4mwAAk3n3eu4n4FssAQFECQBAlAAARAkAQJQAAEQJAECUAABECQBAlAAARAkAQJSrIM5l3x25P/503ucA+D8TwJTcfAssmAAARAnAlDa3Y7sxBwDL5D2AKW0/jPdv7n7wh+dzPArAXSYAgCgBAIiyBAQ8yL6dzVwOEwBAlAkA1uOv319+/cGnL+754DnY/7Z4AgCc2u5b/+Z27ufgOywBAUSZAIBTePd67ifgaCYAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIchXE3PZdqv7jT+d9DtjP1f8rJQBnt7so8epm7udghea5+dm1zxfLEhBAlAng7HaXpN88G8McwOXbbtz7f7kE4Oy2H8YY4/2bux//4fn5nwWO5trnFbEEBBAlAABRAgAQJQAAUQIAECUAAFECABAlAABRAgAQJQAAUU8+vn019zMwxjjsKgh3RDOpQ659dhXEipgAFmO7ca0uS+dLdF0EACDKbaCL8emaaHdEs0C71/5ufl4XAVgM10SzKNb6AywBAUQJAECUAABEeQ/gouzbpu18AHA8E8Di2XkNTEMAAKIEYPE2tw4JA1PwHsDibT84HABMwQQAECUAAFGug75MBy4B2R7KvVz7zBjDBACQJQCXyb4gJuWrq8EuoMvk7mgm4trnEhMAQJQJ4DL54QGckPd7q0wAAFECABDlHMC6HLIE5HBAii3/7GcCWBe79ziK/cRtAgAQZRfQumxux82zMYbzAXzfdmO/f5wArMu9d0cP20MZY1jr5y5LQABRAgAQZRtog+2hq2e7J8czAQBECUCDvd74GuArAtCwuXXkp2v3n96OT74iAABRzgE03Hs+wOGAFfN+LwcwAQBECQBAlHMAYVMsATlMcEKHbO3fxxIQB/AeQNhuU5Br41bGXi8OZgkIIMoEELbbGH7zzBCwHvb7cwwTAECUCSBs+2GMcf/PDzicwwTn4U1dJmACAIgSAIAo5wB4nMtaAjrbMYXHbOG/lyUgJmAC4HFcMnoG/oaZhgAARNkFxOM4TDCp3Wt/W/uZhgDwOCfZSzqdhbxFYQWfRbIEBBAlAABRtoGyapaAYD8TAECUN4FZtdl/5oEt/CyYALBqM+5StYOTxbMEBBBlAmDVFn5MAWZlAgCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIgSAIAoAQCIEgCAKAEAiBIAgCgBAIj6H7sgsIisMRdDAAAAAElFTkSuQmCC">
+<!-- Android/Chrome 用。マニフェストも外部ファイルにせずデータURLで埋め込む -->
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjogIkZydWl0b3BpYSIsICJzaG9ydF9uYW1lIjogIkZydWl0b3BpYSIsICJzdGFydF91cmwiOiAiLiIsICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLCAiYmFja2dyb3VuZF9jb2xvciI6ICIjRkZGNkU5IiwgInRoZW1lX2NvbG9yIjogIiNGRkY2RTkiLCAiaWNvbnMiOiBbeyJzcmMiOiAiZGF0YTppbWFnZS9wbmc7YmFzZTY0LGlWQk9SdzBLR2dvQUFBQU5TVWhFVWdBQUFNQUFBQURBQ0FJQUFBRGR2dnRRQUFBRkowbEVRVlI0bk8zZFAyN1VRQmlHY1dlVkRVcVJBb29jaFFxSkEzQUVUcEFMMEJMYVhJQVRjQVFPZ0VURlRhQUlSU1NpWmFPRndtaXd2UC9zZWUzMTk0NmZYd1VSaVl4NG1HL0czbVRQL3Z6NlhnRzVGbE5mQUx3UkVDUUVCQWtCUVVKQWtCQVFKQVFFQ1FGQlFrQ1FFQkFrQkFRSkFVRkNRSkFRRUNRRUJBa0JRVUpBa0JBUUpBUUVDUUZCUWtDUUVCQWtCQVFKQVVGQ1FKQVFFQ1FFQkFrQlFVSkFrQkFRSkFRRUNRRkJRa0NRRUJBa0JBUUpBVUZDUUpBUUVDUUVCQWtCUVhJKzlRV0U5T3g1dFZpMlA3aFpWNnVmVTF4TmFBUzB5MkpaVmRXN3p4L1RCKzdlM094SUNvd3dpQWdJRWdLQ2hEM1FRQmJuMWJNWHZUOXJzNjdXRDlYbWFZUUxPaEZXb0lFc3IzSSthN0hNL01Rd1dJRUdzblZ3NjZLQXd4MEJaVm1jVjh1cndmN3RMNi8vLzlydGJoTUJaY25ZN25Ua3RpQVJVTDYrQSt2b1Y3aDdjeU4rd2RNam9KNTJQdVVZVmozUlZ2Y1dwek5PWVQyZGJNU01OeVVIeFFyVW16NjVqbjVsbzFuR0N0Ukg4N2lFcXFvSUNDSkdXQ2ZqalMxMzVRYVVmVng2L0xIOXNaMmJrc0dyTXRyNkpPVUdWTmZ6OG0yL3ovcjJhWXhyeWJHNm4vb0tPaWszb0RHa3hXblUzZlN1SlRBczg0REd1SzEzSUE2dEc4Y0pkZFRabjEvZnA3NEdRZjB2Mm5kT2RmRHUvYXZXUis0K2ZGVy9hSmY1eU1QVWNaM2dTY0pwbUR5cE9NcnRQbEFaOVZTNUwwQ0x4MjJFWFY2UE1iQ1NVU2JYdG5xV1dXMlc5ekVaWVhtdk9BN3U4cHJYUko5S2VmWFVGa3YzdjVySkNsUWJjM2lkVlBxTHhMbHZtY3Nxb0ZJNXZ5YmFaSVROaDlzeGt4Vm9VcTJoYkRqUllnZFU1T0hyS0t2WFJNZStEOVI2OWxUTUpucWYxZ3JrY0tQSUlhRGl1OW5tYzZjeDVBZ3I1b0hYRElROGhWR1BqNUFyVUcyR2s4dFE0SUJRYndGajMxb2tvSkNhenpwaUQvU1FleUQ0aUxRQ2NmamFKL0FzaTNRZmFMWjNmYnFJZW1lSUVRWUpBVUVTYVE4MEE3Ky8zRFovZS9INmR2ZWY4eEVqSUxiUHRtSUVOTmQ2MG9Ma3V4VEZDS2ppOE9XS1RUUWtNZTREamZ6dGdnRzFkdFBKM2xuR2ZTQVVpWUFnSVNCSUNBZ1NBb0tFZ0NBaElFZ0lDSkl3anpMbXpmZFpHQ3NRSkFRRUNRRkJRa0NRRUJBa0JBUUpBVUZDUU5PNGVIM3JlKytuaVlBZ0lTQkllSlF4cGVOVHJQbGpOemZyTWE4bEV3RTVpUGRhK29RUkJna0JRVUpBa0lUWkE2WGQ0c3krdzlBZEt4QWtNUUo2L0JINW9JRUR3b3d3TlBtODd4TUJuVlRPRHdSYTNZOXpMY01nb01BY3hucU1QUkJzRVJBa0JBUkp2RDNRbk84bytoeStra2dCcmU2cjVWWFpQN0cxbU1OWEVpbWd6ZE8vTnhOcHZkZnUzRGdjdmhMMlFKQVFFQ1FFQkVtTW54UGQwbnJyakRrY3g1cm5MNnM5VUtSTmRKTGVsMjlXdTJtcmJwS1FBYlhNK2M1UWVMSDNRQ0cva1FWTnNWZWdlYzR5S3lFMzBkdWFBWlUweUd6M3prbnNFWmFZM05mUFp6dXNZNCt3WlBQMDd6OW9rYlBNYysycG1ZeXdwSXhaMW5ycTdoeVF5UWhMYkpmNjNUWnI5K2xzTXNLU2tzNWx6Z3RQNGpiQ0VzZFpWdERrU3R4R1dPSSt5OHduVitJMndoTGZsNTRWc2ZBa3RpT3MxbnB1djIzQzZiYnpCYzZiOWY5dFhCRnNSMWh0L1dBMnk5WVBVMS9Cd0d4SFdDMjlqSHBia09sVzFzRGFaajdDRGpnNjNZN3FPUDRPZnk5TzZRR1pyMEFIS0Z1TmpOV3I5RkQyTWQ4RFlXcmxqakJGMy9GWDNObXF1M0pIbUdLdU5XUmdoRUZDUUpBUUVDUUVCQWtCUVVKQWtCQVFKQVFFQ1FGQlFrQ1FFQkFrQkFRSkFVRkNRSkFRRUNRRUJBa0JRVUpBa0JBUUpBUUVDUUZCUWtDUUVCQWtCQVFKQVVGQ1FKQVFFQ1FFQkFrQlFVSkFrQkFRSkFRRUNRRkJRa0NRRUJBa0JBUUpBVUZDUUpBUUVDUUVCTWxmRFFnaW12bzFzTTBBQUFBQVNVVk9SSzVDWUlJPSIsICJzaXplcyI6ICIxOTJ4MTkyIiwgInR5cGUiOiAiaW1hZ2UvcG5nIn0sIHsic3JjIjogImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxpVkJPUncwS0dnb0FBQUFOU1VoRVVnQUFBZ0FBQUFJQUNBSUFBQUI3R2tPdEFBQU1hVWxFUVZSNG5PM2RRVzVVVnhxQTBZdGxJMlhBbEtWazFCSUw2Q1ZrQmIyQlRKdE1zNEZlUVpiUUM0aVVVWFlDRXdhV1FLUlEwWU5xRVRBdXFMTHIxWHYxdm5OR2lkczBEMkw1cS8vV3ZkZFBQcjU5TlFEb3VacjdBUUNZaHdBQVJBa0FRSlFBQUVRSkFFQ1VBQUJFQ1FCQWxBQUFSQWtBUUpRQUFFUUpBRUNVQUFCRUNRQkFsQUFBUkFrQVFKUUFBRVFKQUVDVUFBQkVDUUJBbEFBQVJBa0FRSlFBQUVRSkFFQ1VBQUJFQ1FCQWxBQUFSQWtBUUpRQUFFUUpBRUNVQUFCRUNRQkFsQUFBUkFrQVFKUUFBRVFKQUVDVUFBQkVDUUJBbEFBQVJBa0FRSlFBQUVRSkFFQ1VBQUJFQ1FCQWxBQUFSQWtBUUpRQUFFUUpBRUNVQUFCRUNRQkFsQUFBUkFrQVFKUUFBRVFKQUVDVUFBQkVDUUJBbEFBQVJBa0FRSlFBQUVRSkFFQ1VBQUJFQ1FCQWxBQUFSQWtBUUpRQUFFUUpBRUNVQUFCRUNRQkFsQUFBUkFrQVFKUUFBRVFKQUVDVUFBQkVDUUJBbEFBQVJBa0FRSlFBQUVRSkFFQ1VBQUJFQ1FCQWxBQUFSQWtBUUpRQUFFUUpBRUNVQUFCRUNRQkFsQUFBUkFrQVFKUUFBRVFKQUVDVUFBQkVDUUJBbEFBQVJBa0FRSlFBQUVRSkFFQ1VBQUJFQ1FCQWxBQUFSQWtBUUpRQUFFUUpBRUNVQUFCRUNRQkFsQUFBUkFrQVFKUUFBRVFKQUVEVTlkd1BBRk82dWg1ampKdG40K3JtdUYrNDNZek43UmhqYkQrYy9xbGdHVXdBQUZFbUFGYnQ1dGtZNCtpWC83dGZzdnUxNzkrYytKRmdNUVNBVlh2QXQvNlQvRnE0QkphQUFLSk1BSVQ4L04vL2ZQZHpmdjNudjg3d0pMQUVKZ0NBS0FFQWlCSUFnQ2dCQUlnU0FJQW9BUUNJRWdDQUtBRUFpQklBZ0NnbmdlRXNIbnd4OVhSY2VaMW5BZ0NJTWdIQVdUejRZdXJwdVBJNnp3UUFFR1VDZ0xOWTFHdi9UNWI1Vkp5TEFNQU1Ecm1ZZWpxdXZHYkhFaEJBbEFBQVJGa0Nnb2U2dWw3aTNwNEgrT0g1OXo5bnV4bGpqTTJ0UXdOcllnSUFpQklBZUtqZHNkNUxmL2wvb04yZmREZnhzQllDQUE4VitkYi91ZUFmZWRVRUFDREttOEJ3QXZQdTZ6L1dzVS9yM01CYW1RQUFvZ1FBSU1vU0VIelBBcS95bjlHZFF3TitxTUFsRXdENG5uV2M5cHFJTzZVdm1TVWdnQ2dUQUh5UDEvN2Y1dS9uWWdrQUhPZXlkbnlleEwxL1pIdERWOEFTRUVDVUFBQkVDUUI4MHlGWEpjTmxFZ0NBS0FFQWlCSUFnQ2dCQUloeURnQytFTnptVDVZSkFDQktBQUNpTEFIeE9BdThLdGtGeFhBWUFlQnhGbmhWOHVNdUtIN1lGVGZyZnVmQXRUOXJaUWtJSU1vRXdPTXM2clgvSjh0OHFyWGFidVorQWg3SUJBQVFaUUxncEg3OGFjN2YvYy9mNXZ6ZG16Njk1YzRGRWdENHBuZXY5LzVQell0Q3YvRVh3cVd4QkFRUVpRSUlXK0FXL3RNNnlTdjA1c3Q4R2dRZ2JJRmIrSGtvVy9WNUFFdEFBRkVtZ0RDdi9VL24xMS8rbVBrSnpqTUIyUEsvTGs4K3ZuMDE5ek13a3p1cjIvUHU0SnpZei8vK3gxR2ZQLzgzOUdOTnZRVjI5NjEvYyt1R3BUV3hCQVFRWlFrSTFzaHVmUTRnQU90eWRXMXZEMk44dWI1bjlZWTlMQUVCUkFuQXV1eE9kWG41eitkMlh4SzcwUkErWXdsb1hYenJQM0xEeitYdDlua3dYeHQ4eFFRQUVHVUNXTFZWYiszbkMvditXN3NpbS8xTUFBQlJBZ0FRWlFub01xMytKbWVtY09meWowOC96TXY1Z0NvQnVFeE9lL0Y0bi9hR3ZuOHo5Nk13RDB0QUFGRW1nTXZrdFQ4bjRRdXBUUUJXd1haUDlybjNhOFBlVU1ZWWxvQUFzZ1FBSU1vU0VPVGQyUjU2TDNkS3I1RUpBQ0JLQUlBRHVGTjZqUVFBT0podG8rc2lBQUJSM2dTR25tTVBqamczc0ZJbUFJQW9BUUNJc2dTMGVGZlg3djVrUWR3cHZTSW1BSUFvRThEaStha3ZMSmtmS25ESkJHRHhmUGMvMHErLy9ESDNJOFQ0RXIxWWxvQUFvcDU4ZlB0cTdtZmdtejUvejgyOS95ekhuY01CNzE3UDlCdzhuQWtBSUVvQUFLSzhDYndZVjlkajJQTURuSThBTEliVFhzQjVXUUlDaURJQkxJYlgvc0I1Q2NCUzJmRUpUTXdTRUVDVUFBQkVXUUlDVHVIekkrdmJ6UmhqYkc3ZEViMXdKZ0NBS0FFQVR1M3E1dTlyb2xrd0FRQ21ZV2Z6NGdrQVFKUTNnWUVIMlhkVTVjNDEwU3lZQ1FBZ1NnQUFvaXdCbmQybmE1K0hkOGxZdTg4UEI0d3h0cHV4dVIxak9CK3dFQUp3ZHI3MWsvVnBiK2o3TjNNL0NtTllBZ0xJTWdHY25kZitsUG42WDVJbkg5KyttdnNaWXU2c2lycjJtWUk3ZTBQZnZaN3BPZmlDSlNDQUtBRUFpQklBZ0NnQkFJZ1NBSUFvQVFDSWNnNEExdU92MzE4ZS9zbFBYeHp4eWF5U0NRQWdTZ0FBb2dRQUlNcDdBRk82dW5iM0o3QllKZ0NBS0JQQWxHNmVlZTBQTEpZQVRNbDNmeGJzM2oyajlvYW1XQUlDaURJQm5JdDcvNEdGTVFFQVJBa0FRSlFBQUVRSkFFQ1VBQUJFUGZuNDl0WGN6N0JlUHp6Lys1L3RBbUltUjkwUnZjOWp6d2Y4K2RzWC8vcnU5YVArM3pnUkV3QkFsQUFBUkFrQVFKUUFBRVFKQUVDVUFBQkVDUUJBbEFBQVJBa0FRSlFBQUVRSkFFQ1VBQUJFQ1FCQWxBQUFSQWtBUUpRQUFFUUpBRUNVQUFCRUNRQkFsQUFBUkFrQVFKUUFBRVJkei8wQXdJSThmZkZ5N2tmZ2ZFd0FBRkVDQUJBbEFBQlJBZ0FRSlFBQVVRSUFFQ1VBQUZFQ0FCQWxBQUJSQWdBUUpRQUFVUUlBRUNVQUFGRUNBQkFsQUFCUkFnQVFKUUFBVVFJQUVDVUFBRkVDQUJBbEFBQlIxM00vQURDdHB5OWUzdnZ4djM2Ly8rTjBtQUFBb2dRQUlFb0FBS0lFQUNCS0FBQ2lCQUFneWpaUTRLVCsvRzN1SitCUUFnQlIrODRIVEd1N21lRTNaUTlMUUFCUkpnRGdYTGFic2JtZCt5SDRtd0FBazNuM2V1NG40RnNzQVFGRUNRQkFsQUFBUkFrQVFKUUFBRVFKQUVDVUFBQkVDUUJBbEFBQVJBa0FRSlNySU01bDN4MjVQLzUwM3VjQStEOFR3SlRjZkFzc21BQUFSQW5BbERhM1k3c3hCd0RMNUQyQUtXMC9qUGR2N243d2grZHpQQXJBWFNZQWdDZ0JBSWl5QkFROHlMNmR6VndPRXdCQWxBa0ExdU92MzE5Ky9jR25MKzc1NERuWS83WjRBZ0NjMnU1Yi8rWjI3dWZnT3l3QkFVU1pBSUJUZVBkNjdpZmdhQ1lBZ0NnQkFJZ1NBSUFvQVFDSUVnQ0FLQUVBaUJJQWdDZ0JBSWdTQUlBb0FRQ0ljaFhFM1BaZHF2N2pUK2Q5RHRqUDFmOHJKUUJudDdzbzhlcG03dWRnaGVhNStkbTF6eGZMRWhCQWxBbmc3SGFYcE44OEc4TWN3T1hiYnR6N2Y3a0U0T3kySDhZWTQvMmJ1eC8vNGZuNW53V081dHJuRmJFRUJCQWxBQUJSQWdBUUpRQUFVUUlBRUNVQUFGRUNBQkFsQUFCUkFnQVFKUUFBVVU4K3ZuMDE5ek13eGpqc0tnaDNSRE9wUTY1OWRoWEVpcGdBRm1PN2NhMHVTK2RMZEYwRUFDREtiYUNMOGVtYWFIZEVzMEM3MS81dWZsNFhBVmdNMTBTektOYjZBeXdCQVVRSkFFQ1VBQUJFZVEvZ291emJwdTE4QUhBOEU4RGkyWGtOVEVNQUFLSUVZUEUydHc0SkExUHdIc0RpYlQ4NEhBQk13UVFBRUNVQUFGR3VnNzVNQnk0QjJSN0t2Vno3ekJqREJBQ1FKUUNYeWI0Z0p1V3JxOEV1b012azdtZ200dHJuRWhNQVFKUUo0REw1NFFHY2tQZDdxMHdBQUZFQ0FCRGxITUM2SExJRTVIQkFpaTMvN0djQ1dCZTc5emlLL2NSdEFnQVFaUmZRdW14dXg4MnpNWWJ6QVh6ZmRtTy9mNXdBck11OWQwY1AyME1aWTFqcjV5NUxRQUJSQWdBUVpSdG9nKzJocTJlN0o4Y3pBUUJFQ1VDRHZkNzRHdUFyQXRDd3VYWGtwMnYzbjk2T1Q3NGlBQUJSemdFMDNIcyt3T0dBRmZOK0x3Y3dBUUJFQ1FCQWxITUFZVk1zQVRsTWNFS0hiTzNmeHhJUUIvQWVRTmh1VTVCcjQxYkdYaThPWmdrSUlNb0VFTGJiR0g3enpCQ3dIdmI3Y3d3VEFFQ1VDU0JzKzJHTWNmL1BEemljd3dUbjRVMWRKbUFDQUlnU0FJQW81d0I0bk10YUFqcmJNWVhIYk9HL2x5VWdKbUFDNEhGY01ub0cvb2FaaGdBQVJOa0Z4T000VERDcDNXdC9XL3VaaGdEd09DZlpTenFkaGJ4RllRV2ZSYklFQkJBbEFBQlJ0b0d5YXBhQVlEOFRBRUNVTjRGWnRkbC81b0V0L0N5WUFMQnFNKzVTdFlPVHhiTUVCQkJsQW1EVkZuNU1BV1psQWdDSUVnQ0FLQUVBaUJJQWdDZ0JBSWdTQUlBb0FRQ0lFZ0NBS0FFQWlCSUFnQ2dCQUlnU0FJQW9BUUNJRWdDQUtBRUFpQklBZ0NnQkFJZ1NBSUFvQVFDSUVnQ0FLQUVBaUJJQWdDZ0JBSWdTQUlBb0FRQ0lFZ0NBS0FFQWlCSUFnQ2dCQUlnU0FJQW9BUUNJRWdDQUtBRUFpQklBZ0NnQkFJZ1NBSUFvQVFDSUVnQ0FLQUVBaUJJQWdDZ0JBSWdTQUlBb0FRQ0lFZ0NBS0FFQWlCSUFnQ2dCQUlnU0FJQW9BUUNJRWdDQUtBRUFpQklBZ0NnQkFJZ1NBSUFvQVFDSUVnQ0FLQUVBaUJJQWdDZ0JBSWdTQUlBb0FRQ0lFZ0NBS0FFQWlCSUFnQ2dCQUlnU0FJQW9BUUNJRWdDQUtBRUFpQklBZ0NnQkFJZ1NBSUFvQVFDSUVnQ0FLQUVBaUJJQWdDZ0JBSWdTQUlBb0FRQ0lFZ0NBS0FFQWlCSUFnQ2dCQUlnU0FJQW9BUUNJRWdDQUtBRUFpQklBZ0NnQkFJZ1NBSUFvQVFDSUVnQ0FLQUVBaUJJQWdDZ0JBSWdTQUlBb0FRQ0lFZ0NBS0FFQWlCSUFnQ2dCQUlnU0FJQW9BUUNJRWdDQUtBRUFpQklBZ0NnQkFJajZIN3Nnc0lpc01SZERBQUFBQUVsRlRrU3VRbUNDIiwgInNpemVzIjogIjUxMng1MTIiLCAidHlwZSI6ICJpbWFnZS9wbmciLCAicHVycG9zZSI6ICJhbnkgbWFza2FibGUifV19">
 <style>
 /* ============================================================
    THEME : 縁日ポップ / 夜店の灯り
@@ -353,7 +366,7 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
 <script>
 "use strict";
 /* ============================================================================
-   フルーツ農園ビルドパズル ／ プロトタイプ
+   フルートピア（Fruitopia） ／ フルーツ農園ビルドパズル
    仕様書 §15 の方針どおり、数値・効果はすべて下記データ定義に集約している。
    バランス調整はこのブロックだけを触れば完結する。
    ========================================================================= */
@@ -363,8 +376,12 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
    ゲーム内では ⚙ 設定の先頭に表示される。
    ========================================================================= */
-const VERSION = '0.63';
+const VERSION = '0.67';
 const CHANGELOG = [
+  ['0.67', 'タイトルを「フルートピア（Fruitopia）」に変更／連鎖マークの説明が古い数値のままだったのを修正'],
+  ['0.66', 'ホーム画面に追加したとき、りんごのアイコンと「Fruitopia」の名前で表示されるように（アイコン・マニフェストとも単一HTMLに埋め込み）'],
+  ['0.65', 'レアリティを3段階に（コモン6：レア3：ハイレア1）。ハイレアはビルドの主軸になる10種／🔗マークを消すと、そのフルーツの固有スコアが永続的に+0.1されるように変更（ステージをまたいで積み上がる）'],
+  ['0.64', '連鎖マークの増え方を2の累乗から直線的に（10連鎖で128個→8個）／堆肥箱を「手放すたび基礎スコアの5%が永続加算」に変更／呪われた3種をナーフしてコモンへ／ぶどうの醸し壺・銀の苗床をレアへ／四つ葉と賭博師の帽子を強化／りんご磨きを累積型に／収穫帳の初期効果を強化（10個ごと+0.1→8個ごと+0.15）'],
   ['0.63', 'ナーフに合わせて目標値を全面的に見直し（S1〜S5でクリア率8割前後、S12前後で3割に）／S8クリアで「国民の食糧難、解決！」の区切りを追加。S9以降は諸国を巡るエンドコンテンツに'],
   ['0.62', 'にせものの罰を固定値から割合（基礎スコア-30%/Lv）に変更。何種類重ねてもマイナスにならないように／にせものは3種類までしか取れないように'],
   ['0.61', 'にせものを複数持ったとき、主役のフルーツ同士が罰を撃ち合って盤面がマイナスに沈むのを修正（他のにせものの主役は罰の対象外に）／罰の重ね掛けに下限を設定'],
@@ -462,7 +479,7 @@ const CONFIG = {
   multFruitGain:  0.1,   // 実りのフルーツを消したときに増える基本倍率
   carryItems:     1,     // 次のステージへ持ち越せるアイテム数（基本値・種で増やせる）
   carrySlotCosts: [5, 25, 125],  // 持ち越し枠を1つ増やすのに必要な種（買うたびに次の値へ）
-  rarityWeight: {common:2, rare:1},  // ストアに並ぶ重み。コモン2:レア1の比率になる
+  rarityWeight: {common:6, rare:3, epic:1},  // ストアに並ぶ重み（コモン6：レア3：ハイレア1）
   rareRerollCost: 3,     // 「レア以上を引き直す」の追加コスト（通常のリロール代に加算）
   // --- 連鎖のマーク ---
   markChainStart: 3,     // このターン内で何連鎖に達したらマークが付き始めるか
@@ -473,7 +490,7 @@ const CONFIG = {
                           // （実際の偏りは spawnRateCap が最終的に抑える）
   spawnRateCap:   0.45,  // 1フルーツが盤面で占められる出現率の上限（単色化の防止）
   squareGain:     1,     // 大収穫1回で基礎スコア倍率にいくつ足すか（倍増ではなく加算）
-  markMulCap:     5,     // 🔗マークで1フルーツが得られる倍率の上限
+  markScoreGain:  0.1,   // 🔗を1つ消すと、そのフルーツの固有スコアが永続的にいくつ増えるか
   markStep:       0.05,  // 連鎖が起きるたびに固有倍率へ加算される量（線形）
   maxSlots:       10,    // 最大アイテム枠
   slotGain:       1,     // ステージクリアごとの枠増加
@@ -555,8 +572,9 @@ const F = {}; FRUITS.forEach(f => F[f.id] = f);
             ビルドが噛み合ったときだけ本領を発揮する
    ========================================================================= */
 const RARITY = {
-  common: {n:'コモン', col:'#A3846C', mark:''},
-  rare:   {n:'レア',   col:'#B5730C', mark:'★'}
+  common: {n:'コモン',  col:'#A3846C', mark:''},
+  rare:   {n:'レア',    col:'#B5730C', mark:'★'},
+  epic:   {n:'ハイレア', col:'#8B5CF6', mark:'✦'}
 };
 // レアに指定するID。ここに無いものは自動的に common になる。
 // にせもの系は強力だが、あえて低レア（引きやすい）に据え置く。
@@ -564,21 +582,35 @@ const RARITY = {
 // 特殊フルーツ専用のアイテム（金・銀・虹・黒・爆弾）は、その特殊フルーツが
 // 出なければ何もしない＝条件付きなので、あえてコモンに置く。
 // 逆に、盤面の状況に関係なく毎ターン効くものほどレアにする。
-const RARE_IDS = new Set([
-  // 常時かかる倍率・基礎スコア（どんな盤面でも腐らない）
-  'x2','moon','scale','mirror','invert','balance','abyss','seedcharm','seedfoam',
-  // 全フルーツ・全連鎖に効く汎用強化
-  'chainm','sunfoc','clover','gamble','igniter','chainbox','ledger','longr',
-  // 複利・累積で伸び続けるもの
-  'compound','compoundharvest','compoundchain','sower','proctally','turntally',
-  // 盤面そのものを操作する強力なもの
-  'monopoly','pray','seedeat','seedthief',
-  // 条件が裏返って大きく化けるもの
-  'burnfield','lastcall','bigcatch','debtnote','frostvault','compost',
-  'survey','surveyor'
+// ハイレア：ビルドの主軸になり、噛み合うと一気に伸びるもの。
+// 引ければそのステージの方針が決まるくらいの影響力を持たせる。
+const EPIC_IDS = new Set([
+  'x2',              // 常時×2.5（枠を1つ食う）
+  'compound',        // 固有効果のたびに複利で伸びる
+  'compoundharvest', // 消すほど複利で伸びる
+  'grapeburst',      // ぶどうの一斉消去（連鎖の起点になる）
+  'frostvault',      // 序盤×0.5／終盤×4に化ける
+  'debtnote',        // 抱えるほど反転して大きくなる
+  'bigcatch',        // 大きな塊しか収穫できない代わりに強い
+  'survey',          // 大収穫の伸びが2倍
+  'seedfoam',        // 種を抱えるほど複利で伸びる
+  'monopoly'         // 盤面を主軸フルーツに寄せる
 ]);
-function rarityOf(it){ return RARE_IDS.has(it.id) ? 'rare' : 'common'; }
-function isRare(it){ return rarityOf(it) === 'rare'; }
+// レア：どんなビルドでも腐りにくい汎用強化。
+const RARE_IDS = new Set([
+  'invert','balance','abyss','seedcharm',
+  'chainm','sunfoc','clover','gamble','igniter','chainbox','ledger','longr',
+  'compoundchain','sower','proctally','turntally','silvernursery',
+  'pray','seedeat','seedthief',
+  'burnfield','lastcall','compost','surveyor'
+]);
+function rarityOf(it){
+  if(EPIC_IDS.has(it.id)) return 'epic';
+  if(RARE_IDS.has(it.id)) return 'rare';
+  return 'common';
+}
+function isRare(it){ return rarityOf(it) !== 'common'; }   // レア以上
+function isEpic(it){ return rarityOf(it) === 'epic'; }
 
 /* ---------------- アイテム（§7） ----------------
    apply(c, s) : c = 集計コンテキスト / s = ゲーム状態
@@ -611,12 +643,12 @@ const ITEMS = [
     apply:c=>{ c.mults.push(2.5); c.slotAdd -= 1; }},
 
   // --- 倍率系（負・§8）単体では致命的だが、偶数個そろえると爆発する ---
-  {id:'moon',  n:'逆さの月',     ic:'🌘', tag:'負倍率', neg:true, d:'スコア倍率 ×-1.5',
+  {id:'moon',  n:'逆さの月',     ic:'🌘', tag:'負倍率', neg:true, d:'スコア倍率 ×-1.2',
+    apply:c=>{c.mults.push(-1.2);c.negCount++}},
+  {id:'scale', n:'呪われた天秤', ic:'⚖️', tag:'負倍率', neg:true, d:'スコア倍率 ×-1.5',
     apply:c=>{c.mults.push(-1.5);c.negCount++}},
-  {id:'scale', n:'呪われた天秤', ic:'⚖️', tag:'負倍率', neg:true, d:'スコア倍率 ×-2',
-    apply:c=>{c.mults.push(-2);c.negCount++}},
-  {id:'mirror',n:'鏡の農具',     ic:'🪞', tag:'負倍率', neg:true, d:'スコア倍率 ×-2',
-    apply:c=>{c.mults.push(-2);c.negCount++}},
+  {id:'mirror',n:'鏡の農具',     ic:'🪞', tag:'負倍率', neg:true, d:'スコア倍率 ×-1.5',
+    apply:c=>{c.mults.push(-1.5);c.negCount++}},
   {id:'invert',n:'反転の実',     ic:'🔃', tag:'シナジー',
     d:'収穫がマイナスになったとき、プラスへ反転して1.5倍にする（-5000 → +7500）。'
       + '取得した時点でたまっているマイナスもその場で反転する',
@@ -646,8 +678,8 @@ const ITEMS = [
 
   // ---- アイテムを手放すことが得になるアイテム ----
   {id:'compost',n:'堆肥箱',       ic:'♻️', tag:'シナジー',
-    d:'このステージでアイテムを手放すたび、基礎スコア +8（手放した数ぶん）',
-    apply:(c,s)=>c.baseAdd+=8*s.discarded},
+    d:'アイテムを手放すたび、そのときの基礎スコアの5%が永続的に上乗せされる',
+    apply:(c,s)=>c.baseAdd+=s.compostBonus||0},
   {id:'burnfield',n:'焼き畑',     ic:'🔥', tag:'倍率',
     d:'所持アイテムが3個以下のとき スコア倍率 ×2',
     apply:(c,s)=>{ if(s.items.length<=3) c.mults.push(2); }, late:true},
@@ -672,10 +704,11 @@ const ITEMS = [
     apply:c=>c.baseAdd+=15*c.negCount, late:true},
 
   // --- 確率系（§7.2） ---
-  {id:'clover',n:'四つ葉',       ic:'🍀', tag:'確率', d:'全フルーツの固有効果率 +10%',
-    apply:c=>c.chanceAdd+=0.10},
-  {id:'gamble',n:'賭博師の帽子', ic:'🎩', tag:'確率', d:'固有効果率 +25%／基礎スコア -4',
-    apply:c=>{c.chanceAdd+=0.25;c.baseAdd-=4}},
+  {id:'clover',n:'四つ葉',       ic:'🍀', tag:'確率', d:'全フルーツの固有効果率 +25%',
+    apply:c=>c.chanceAdd+=0.25},
+  {id:'gamble',n:'賭博師の帽子', ic:'🎩', tag:'確率',
+    d:'固有効果率 +40%／基礎スコア -4',
+    apply:c=>{c.chanceAdd+=0.40;c.baseAdd-=4}},
   {id:'seedbag',n:'幸運の種袋',  ic:'👝', tag:'確率', d:'種の出現率 +5%',
     apply:c=>c.seedAdd+=0.05},
   {id:'pray',  n:'豊穣の祈り',   ic:'🙏', tag:'確率', d:'種の出現率が2倍（レベルごとに+1倍）',
@@ -716,8 +749,10 @@ const ITEMS = [
     apply:(c,s,it,once)=>once('detonator', ()=>{ c.bombMult *= 1 + 1.5*LV(it); })},
 
   // --- フルーツ固有効果系（§7.3） ---
-  {id:'apolish',n:'りんご磨き',  ic:'🍎', tag:'果実', d:'りんごのスコア +14',
-    apply:c=>c.fruitScore.apple=(c.fruitScore.apple||0)+14},
+  {id:'apolish',n:'りんご磨き',  ic:'🍎', tag:'果実', need:'apple',
+    track:'fruit:apple', every:5, unit:'個',
+    d:'りんごを5個消すごとに、そのステージのあいだ りんごのスコア +4',
+    apply:(c,s,it)=>c.fruitScore.apple=(c.fruitScore.apple||0)+4*lv(it)},
   {id:'avow',  n:'りんごの誓い', ic:'❤️', tag:'果実', d:'りんごの効果率 +20%',
     apply:c=>c.fruitChance.apple=(c.fruitChance.apple||0)+0.20},
   {id:'squeez',n:'オレンジ絞り器',ic:'🍹',tag:'果実', d:'オレンジの効果率 +18%',
@@ -887,8 +922,8 @@ FRUITS.forEach(f => ITEMS.push({
 }));
 
 /* 収穫帳シリーズ：消すほどそのフルーツのスコア倍率が伸びる。全フルーツぶん自動生成。 */
-const TALLY_STEP = 10;    // 何個ごとに
-const TALLY_GAIN = 0.1;   // どれだけ倍率が上がるか
+const TALLY_STEP = 8;     // 何個ごとに
+const TALLY_GAIN = 0.15;  // どれだけ倍率が上がるか
 const TALLY_CAP  = 30;    // 何段まで積めるか（上限 +3.0）
                           // 上限がないと、盤面が単色に寄ったビルドで1ターンに
                           // 数百個消えて倍率が青天井になり、他の軸と桁が合わなくなる
@@ -1122,10 +1157,9 @@ function ctx(){
   c.baseAdd += CONFIG.soilGain * soilLevel();     // 永続成長ぶん
   if(S.baseMult !== 1) c.mults.push(S.baseMult);  // 基本倍率（実りのフルーツで育つ）
   // 連鎖のマークで育てたぶんを、そのフルーツの倍率に足す
-  // 🔗マークで育てたぶん。1ターンに何十連鎖もするビルドでは青天井に伸びて
-  // 他の軸と桁が合わなくなるため、フルーツごとの上限を設ける。
+  // 🔗マークで永続的に積み上げた固有スコア（倍率ではなく素点への加算）
   for(const id in S.fruitMark)
-    c.fruitMul[id] = (c.fruitMul[id] || 1) + Math.min(CONFIG.markMulCap, S.fruitMark[id]);
+    c.fruitScore[id] = (c.fruitScore[id] || 0) + S.fruitMark[id];
   c.storeSize += Math.floor(S.stage / CONFIG.storeGrowth);
 
   // ---- 国民を騙した報い ----
@@ -1797,7 +1831,8 @@ function growMarks(){
 }
 function markCount(chain){
   if(chain < CONFIG.markChainStart) return 0;
-  return Math.pow(2, chain - CONFIG.markChainStart);   // 3連鎖:1 / 4:2 / 5:4 / 6:8
+  // 2の累乗だと10連鎖で128個も付いて盤面が埋まってしまうため、直線的に増やす。
+  return chain - CONFIG.markChainStart + 1;            // 3連鎖:1 / 4:2 / 5:3 / 6:4
 }
 function grantMarks(n){
   const pool = [];
@@ -2043,7 +2078,8 @@ async function resolve(manual, swapCells){
                     {cls:'mini', delay: T(Math.min(k, 6) * 34)});
         }
         // 固有効果判定（§4.1）
-        const chance = CONFIG.effectChance + c.chanceAdd + (c.fruitChance[cell.f] || 0);
+        // 100%を超えた分は無駄になるので、そのまま上限で止める
+        const chance = Math.min(1, CONFIG.effectChance + c.chanceAdd + (c.fruitChance[cell.f] || 0));
         if(Math.random() < chance){
           procs++; dyn += c.perProc; bump('proc');
           if(k < CONFIG.maxMiniFloats){
@@ -2236,9 +2272,10 @@ async function clearCells(set){
       announce(`制限ターン +${CONFIG.turnFruitGain}`, '#8fd4ff');
     }
     if(cell.mk){
-      // マークが付いていたフルーツ自身の倍率が上がる
-      S.fruitMark[cell.f] = Math.round(((S.fruitMark[cell.f] || 0) + cell.mk) * 1000) / 1000;
-      floatText(i, `${F[cell.f].icon}+${cell.mk}`, '#b6f0c8', {cls:'fx', dy:0.58});
+      // 🔗を消すと、そのフルーツの固有スコアが永続的に +0.1 される。
+      // ステージをまたいでも消えず、遊ぶほど育っていく数値。
+      S.fruitMark[cell.f] = Math.round(((S.fruitMark[cell.f] || 0) + CONFIG.markScoreGain) * 100) / 100;
+      floatText(i, `${F[cell.f].icon}+${CONFIG.markScoreGain}`, '#b6f0c8', {cls:'fx', dy:0.58});
     }
     if(cell.bn === 'mult'){
       S.baseMult = Math.round((S.baseMult + CONFIG.multFruitGain) * 100) / 100;
@@ -2554,7 +2591,7 @@ function renderStore(discardMode){
     return `<button class="card ${it.neg?'neg':''} ${own?'on':''}" data-buy="${i}" ${maxed?'disabled style="opacity:.4"':''}>
        <span class="ic">${it.ic}</span>
        <span style="flex:1"><span class="t">${it.n}
-         ${isRare(it) ? `<span class="tag" style="border-color:${RARITY.rare.col};color:${RARITY.rare.col};font-weight:800">${RARITY.rare.mark}${RARITY.rare.n}</span>` : ''}
+         ${isRare(it) ? (r => `<span class="tag" style="border-color:${r.col};color:${r.col};font-weight:800">${r.mark}${r.n}</span>`)(RARITY[rarityOf(it)]) : ''}
          <span class="tag">${it.tag}</span>
          ${own ? `<span class="tag" style="border-color:var(--lantern);color:var(--lantern)">${
            maxed ? `Lv${LV(own)} 上限` : `Lv${LV(own)} → Lv${LV(own)+1}`}</span>` : ''}</span>
@@ -2722,9 +2759,9 @@ function startStage(skipIntro){
   S.harvest = 0;
   S.baseMult = S.carriedMult;      // 継承の苗木で持ち越した基本倍率
   S.carriedMult = 1;
-  S.fruitMark = {};                // マークで育てたフルーツ別の倍率
   S.harvestBoost = 1;              // 3×3の大収穫で上がる、盤面全体の基礎スコア倍率
-  S.discarded = 0;                 // このステージでアイテムを手放した回数（堆肥箱）
+  S.discarded = 0;                 // このステージでアイテムを手放した回数
+  S.compostBonus = 0;              // 堆肥箱で積み上げた基礎スコア（ステージ内で永続）
   S.items = [];
   const c1 = ctx();                       // アイテムをリセットした状態でたからものを再評価
   S.turnsMax = st.turns + c1.turnAdd;
@@ -3091,7 +3128,7 @@ function stageFail(){
 
 function newGame(){
   S.stage = 0; S.slots = CONFIG.startSlots; S.treasures = []; S.uid = 0;
-  S.lifetime = 0; S.maxStage = 0; S.carrySlots = 0;
+  S.lifetime = 0; S.maxStage = 0; S.carrySlots = 0; S.fruitMark = {};
   startStage();
 }
 
@@ -3175,6 +3212,7 @@ function saveText(){
     v:VERSION,
     stage:S.stage, maxStage:S.maxStage, slots:S.slots, seeds:S.seeds,
     lifetime:S.lifetime, spd:S.spd, carriedMult:S.carriedMult, carrySlots:S.carrySlots,
+    fruitMark:S.fruitMark,
     items:S.items.map(i => [i.id, LV(i)]),
     treasures:S.treasures.map(t => [t.id, LV(t)])
   });
@@ -3195,6 +3233,7 @@ function loadText(txt){
   S.lifetime = bnCompare(toBN(o.lifetime || 0), 0) > 0 ? toBN(o.lifetime || 0) : bn(0);
   S.carriedMult = Math.max(1, +o.carriedMult || 1);
   S.carrySlots = Math.min(CONFIG.carrySlotCosts.length, Math.max(0, o.carrySlots | 0));
+  S.fruitMark = (o.fruitMark && typeof o.fruitMark === 'object') ? o.fruitMark : {};
   S.carryOver = [];
   if(o.spd) { S.spd = +o.spd; applySpeed(); }
 
@@ -3407,7 +3446,7 @@ function openCatalog(back){
     const gate = x.need ? `<span class="tag">${F[x.need].name}が出るステージのみ</span>` : '';
     const uniq = x.unique ? `<span class="tag">1個まで</span>` : '';
     const rare = kind === 'item' && isRare(x)
-      ? `<span class="tag" style="border-color:${RARITY.rare.col};color:${RARITY.rare.col};font-weight:800">${RARITY.rare.mark}</span>` : '';
+      ? (r => `<span class="tag" style="border-color:${r.col};color:${r.col};font-weight:800">${r.mark}</span>`)(RARITY[rarityOf(x)]) : '';
     return `<div class="card ${cls}">
       <span class="ic">${x.ic}</span>
       <span style="flex:1"><span class="t">${x.n}${rare}${gate}${uniq}
@@ -3432,10 +3471,10 @@ function openCatalog(back){
 
   sheet(`
     <h2>図鑑</h2>
-    <div class="sub">アイテム ${ITEMS.length} 種（うち${RARITY.rare.mark}レア ${ITEMS.filter(isRare).length} 種）
+    <div class="sub">アイテム ${ITEMS.length} 種（${RARITY.rare.mark}レア ${ITEMS.filter(i=>rarityOf(i)==='rare').length} 種／${RARITY.epic.mark}ハイレア ${ITEMS.filter(isEpic).length} 種）
       ／ たからもの ${TREASURES.length} 種 ／ フルーツ ${FRUITS.length} 種<br>
       所持中のものは金色の枠と ✓ が付きます。
-      ${RARITY.rare.mark}レアは出にくい代わりに、噛み合うと大きく伸びます。</div>
+      ${RARITY.rare.mark}レアは腐りにくい汎用強化、${RARITY.epic.mark}ハイレアはビルドの主軸になる強力なものです。</div>
 
     ${byTag}
     ${misc.length ? `<h3 class="sec">その他</h3>` + misc.map(i => card(i,'item')).join('') : ''}
@@ -3554,12 +3593,12 @@ function openBreakdown(back){
               const k = Object.keys(by);
               return k.length ? k.map(id => F[id].icon + '+' + (Math.round(by[id]*100)/100)).join(' ') : '—';
             })()}</span></td></tr>
-      <tr class="mute"><td class="ic">📈</td><td>連鎖1回ごとに固有倍率が</td>
-        <td>+${CONFIG.markStep}</td></tr>
+      <tr class="mute"><td class="ic">📈</td><td>🔗を1つ消すと固有スコアが</td>
+        <td>+${CONFIG.markScoreGain}（永続）</td></tr>
       <tr class="mute"><td class="ic">➕</td><td>マークが増える連鎖数</td>
         <td>${[3,4,5,6].map(n => n + '連鎖:' + markCount(n)).join(' / ')}</td></tr>
       ${Object.keys(S.fruitMark).length ? Object.entries(S.fruitMark).map(([id,v]) =>
-        `<tr><td class="ic">${fruitIconHTML(id, '19px')}</td><td>${F[id].name}がマークで育った量</td>
+        `<tr><td class="ic">${fruitIconHTML(id, '19px')}</td><td>${F[id].name}の固有スコア（🔗の積み上げ・永続）</td>
          <td>+${Math.round(v*100)/100}</td></tr>`).join('') : ''}
     </table>
 
@@ -3765,7 +3804,16 @@ document.addEventListener('click', e => {
         e2 => {
           e2.querySelector('[data-act="yes"]').onclick = () => {
             const idx = S.items.indexOf(it);
-            if(idx >= 0){ S.items.splice(idx, 1); S.discarded++; }   // 堆肥箱が数える
+            if(idx >= 0){
+              S.items.splice(idx, 1);
+              S.discarded++;
+              // 堆肥箱：手放した時点の基礎スコアの5%を、以後ずっと上乗せする
+              if(S.items.some(x => x.id === 'compost')){
+                const base = FRUITS[0].base + ctx().baseAdd;
+                S.compostBonus += Math.max(1, Math.round(base * 0.05 * 10) / 10);
+                toast(`堆肥箱：基礎スコア +${S.compostBonus}`);
+              }
+            }
             hud();
             toast(`${it.n} を手放した`);
             closeSheet();
@@ -3853,8 +3901,8 @@ $('btnOpt').onclick = () => {
 $('btnHelp').onclick = () => {
   const fx = FRUITS.map(f => `<li>${fruitIconHTML(f.id, '17px')} ${f.name} — <b>${f.fx}</b>：${f.fxDesc}</li>`).join('');
   sheet(`
-    <h2>遊び方</h2>
-    <div class="sub">マッチ3 × ビルド構築</div>
+    <h2>フルートピア</h2>
+    <div class="sub">Fruitopia ／ マッチ3 × ビルド構築</div>
     <div class="doc">
       <h3 class="sec">目的</h3>
       制限ターン以内に目標の収穫量に届かせる。1回の入れ替えが1ターン。連鎖はすべて1ターンに含まれる。
@@ -3874,12 +3922,11 @@ $('btnHelp').onclick = () => {
       <ul>${fx}</ul>
       <h3 class="sec">連鎖のマーク 🔗</h3>
       1ターンのうちに ${CONFIG.markChainStart} 連鎖に達すると、盤面のフルーツに 🔗 が付く。
-      付く数は連鎖が1段深まるごとに倍になる（${[3,4,5,6].map(n=>n+'連鎖で'+markCount(n)+'個').join('、')}）。<br>
-      🔗 は<b>連鎖が起きるたびに固有倍率が +${CONFIG.markStep} ずつ育つ</b>（線形）。
-      育った 🔗 を消すと、その分が<b>付いていたフルーツ自身の倍率</b>に加算される。
-      りんごに付いた 🔗 を消せば、そのステージのあいだ<b>りんごだけ</b>が強くなる。<br>
-      同じフルーツに何度も乗せれば、特定のフルーツを極端に伸ばせる。
-      にせもの系や収穫帳と組み合わせると噛み合う。
+      付く数は連鎖が1段深まるごとに1つずつ増える（${[3,4,5,6].map(n=>n+'連鎖で'+markCount(n)+'個').join('、')}）。<br>
+      🔗 を消すと、付いていたフルーツの<b>固有スコアが永続的に +${CONFIG.markScoreGain}</b> される。
+      りんごに付いた 🔗 を消せば、りんごが以後ずっと少しだけ強くなる。<br>
+      ステージをまたいでも消えず、遊ぶほど積み上がっていく数値。
+      同じフルーツに何度も乗せれば、そのフルーツを主軸に育てられる。
       <h3 class="sec">フルーツに付く属性</h3>
       即発アイテムを持っているあいだ、通常のフルーツに小さな印が付いて出てくる。
       フルーツの種類は変わらないので、いつもどおり3つそろえて消せばよい。<br>
