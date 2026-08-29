@@ -376,8 +376,10 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
    ゲーム内では ⚙ 設定の先頭に表示される。
    ========================================================================= */
-const VERSION = '0.73';
+const VERSION = '0.75';
 const CHANGELOG = [
+  ['0.75', '持ち越し枠が買えなくなっていたのを修正（クリア時に種がコインへ変わるのに、購入は種建てのままだった）。枠の購入をコイン建てに変更／測量士の判定を3×3から2×2に変更して実際に発動するように'],
+  ['0.74', 'たからもの「果樹園の地図」を削除（盤面が揃いやすくなりすぎて突出していたため）。既存のセーブに入っていても読み飛ばして続行できます'],
   ['0.73', 'マップのボタン表記が逆だったのを修正（クリア済みの農園が「最初からやり直す」に）／賭博師の帽子を+20%に、釣り合いをとって四つ葉+12%・太陽の欠片+8%/Lvへ調整'],
   ['0.72', 'アイテムを重ねたときの変化を、実際に計算してストアに表示するように（Lv2でどうなるか事前に分かる）／コイン経済を導入：余った種はラウンド終了時にコインへ変わり、マップの道具屋で爆弾を買える。種での即時爆破は廃止し、爆弾は買って持ち歩く道具に'],
   ['0.71', 'ブラウザに自動保存するように（農園に入るたび保存し、次に開くと続きから）。設定画面から手動保存と削除もできる／クリア後は次の農園へ直行せず、いったんマップへ戻る流れに変更'],
@@ -470,10 +472,10 @@ const CONFIG = {
   roundSeeds:     3,     // ラウンド開始時に配られる種（ステージごとにリセット）
   bombPrice:      4,     // 爆弾1個をコインで買うときの値段
   coinPerSeed:    1,     // ラウンド終了時、残った種1個が何コインになるか
-  harvestBombCost:5,     // 特定フルーツを一斉収穫する爆弾に使う種の数
+  harvestBombCost:5,     // 特定フルーツを一斉収穫するのに使うコイン
   treasureReroll: 5,     // たからものの引き直しに必要な種（1回ごとに +1）
-  skipSeedReward: 2,     // ストアで「取らずに次へ」を選んだときに貰える種
-  instantItemCost:3,     // 枠を取らない即発アイテム(once)を種と交換するコスト
+  skipSeedReward: 2,     // 取らずに次へ を選んだときに得られるコイン     // ストアで「取らずに次へ」を選んだときに貰える種
+  instantItemCost:3,     // 枠を取らない即発アイテム(once)をコインと交換するコスト
   turnBonusRatio: 0.1,   // 残りターンボーナス＝ そのステージの収穫 × この値 × 残りターン数
   deceitTurnLoss: 3,     // この個数を超えて持つと、ステージの制限ターンが1減る
   itemBonusPerLv: 300,   // 持ち越されず消えるアイテム1レベルあたりのボーナス点
@@ -485,7 +487,7 @@ const CONFIG = {
   turnFruitGain:  1,     // 時のフルーツを消したときに増える制限ターン
   multFruitGain:  0.1,   // 実りのフルーツを消したときに増える基本倍率
   carryItems:     1,     // 次のステージへ持ち越せるアイテム数（基本値・種で増やせる）
-  carrySlotCosts: [5, 25, 125],  // 持ち越し枠を1つ増やすのに必要な種（買うたびに次の値へ）
+  carrySlotCosts: [5, 25, 125],  // 持ち越し枠を1つ増やすのに必要なコイン（買うたびに次の値へ）
   rarityWeight: {common:6, rare:3, epic:1},  // ストアに並ぶ重み（コモン6：レア3：ハイレア1）
   rareRerollCost: 3,     // 「レア以上を引き直す」の追加コスト（通常のリロール代に加算）
   // --- 連鎖のマーク ---
@@ -679,8 +681,8 @@ const ITEMS = [
     d:'3×3の大収穫で上がる量が2倍になる',
     apply:c=>c.squareMul+=1},
   {id:'surveyor',n:'測量士',      ic:'📐', tag:'スコア',
-    d:'4個以上の塊で消したとき、その塊が正方形なら追加スコア +80',
-    apply:c=>c.sizeAdd+=0},          // 実処理は resolve 側（正方形判定が必要なため）
+    d:'塊のなかに2×2の正方形が含まれていたら追加スコア +80',
+    apply:()=>{}},                   // 実処理は resolve 側（正方形判定が必要なため）
 
   // ---- 🌱の印を活かすアイテム ----
   {id:'seedthief',n:'種泥棒',     ic:'🐦', tag:'確率',
@@ -964,10 +966,9 @@ function treasure(id, n, ic, dl, apply){
 }
 const TREASURES = [
   // apply はレベル回数ぶん呼ばれるので、中では1レベルぶんの効果だけを書く
-  // noLevel: レベルアップの概念がない。一度手に入れたら二度と候補に出ず、常に同じ効果のまま。
-  {id:'map', n:'果樹園の地図', ic:'🗺️', noLevel:true,
-    d:'盤面のフルーツ種類 -1（揃いやすくなる）',
-    apply:(c,s,it,once)=>once('map', ()=>{ c.typeCut+=1; })},
+  // 「果樹園の地図」（フルーツ種類-1）は、盤面が揃いやすくなりすぎて
+  // 他のたからものと比べて突出していたため削除した。
+  // typeCut の仕組み自体は残してあるので、必要なら別の形で再利用できる。
   treasure('urn','豊穣の壺','🏺',
     v=>`種の出現率 +${3*v}%`,                        c=>c.seedAdd += 0.03),
   treasure('card','商人の名刺','💳',
@@ -1397,15 +1398,18 @@ function cellValue(cell, c){
 /* 3×3の正方形がまるごと同じフルーツで埋まっているかを調べ、
    その左上マスの一覧を返す。見つかると「大収穫」となり、
    盤面すべてのフルーツの基礎スコアが倍になる。 */
-function findSquares(group){
+/* group の中に n×n の正方形が含まれているか調べ、その左上マスの一覧を返す。
+   n=3 は「大収穫」、n=2 は測量士のボーナス判定に使う。 */
+function findSquares(group, n){
+  const size = n || 3;
   const inGroup = new Set(group);
   const found = [];
   for(const i of group){
     const x = i % S.w, y = (i / S.w) | 0;
-    if(x + 2 >= S.w || y + 2 >= S.h) continue;
+    if(x + size - 1 >= S.w || y + size - 1 >= S.h) continue;
     let ok = true;
-    for(let dy = 0; dy < 3 && ok; dy++)
-      for(let dx = 0; dx < 3; dx++)
+    for(let dy = 0; dy < size && ok; dy++)
+      for(let dx = 0; dx < size; dx++)
         if(!inGroup.has((y + dy) * S.w + (x + dx))){ ok = false; break; }
     if(ok) found.push(i);
   }
@@ -1444,7 +1448,7 @@ function spawnTable(){
 }
 function refreshSpawn(){ S.spawn = spawnTable(); }
 
-/* いま盤面に出るフルーツの一覧。果樹園の地図などで種類数が減る。 */
+/* いま盤面に出るフルーツの一覧。typeCut を上げる効果があれば種類数が減る。 */
 function activeFruitIds(){
   const st = stageData(S.stage), c = ctx();
   const n = Math.max(3, Math.min(FRUITS.length, st.fruits - c.typeCut));
@@ -1748,8 +1752,8 @@ function hud(){
   $('btnBomb').textContent = S.bombMode ? '💣 対象をタップ' : `💣 爆弾 ×${S.bombs}`;
   const hb = $('btnHarvest');
   if(hb){
-    hb.disabled = S.seeds < CONFIG.harvestBombCost || S.busy;
-    hb.textContent = `🌾 一斉収穫 🌱${CONFIG.harvestBombCost}`;
+    hb.disabled = S.coins < CONFIG.harvestBombCost || S.busy;
+    hb.textContent = `🌾 一斉収穫 🪙${CONFIG.harvestBombCost}`;
   }
 }
 
@@ -2193,7 +2197,8 @@ async function resolve(manual, swapCells){
       });
       const sizeB = Math.max(0, g.length-3) * (CONFIG.sizeBonus + c.sizeAdd);
       // 測量士：塊が正方形（3×3など）なら追加スコア
-      const squareB = (S.items.some(x => x.id === 'surveyor') && g.length >= 4 && findSquares(g).length)
+      // 測量士：3×3はめったに揃わないので、2×2が含まれていれば加点する
+      const squareB = (S.items.some(x => x.id === 'surveyor') && findSquares(g, 2).length)
         ? 80 * LV(S.items.find(x => x.id === 'surveyor')) : 0;
       // 大物狙い：規定サイズ未満の塊からは収穫できない
       const tooSmall = c.bigOnly && g.length < c.bigOnly;
@@ -2498,8 +2503,8 @@ async function useBomb(idx){
 async function useHarvestBomb(fruitId){
   S._resolveStart = Date.now();
   const c = ctx();
-  if(S.seeds < CONFIG.harvestBombCost){ hud(); return; }
-  S.seeds -= CONFIG.harvestBombCost;
+  if(S.coins < CONFIG.harvestBombCost){ hud(); return; }
+  S.coins -= CONFIG.harvestBombCost;
   S.busy = true;
   closeSheet();
 
@@ -2512,7 +2517,7 @@ async function useHarvestBomb(fruitId){
   }
   if(!set.size){
     toast(`${F[fruitId].name}が盤面にない`);
-    S.seeds += CONFIG.harvestBombCost;                  // 空撃ちは種を返す
+    S.coins += CONFIG.harvestBombCost;                  // 空撃ちはコインを返す
     S.busy = false; hud(); return;
   }
 
@@ -2541,11 +2546,11 @@ function openHarvestBomb(){
   const c = ctx();
   sheet(`
     <h2>🌾 一斉収穫</h2>
-    <div class="sub">不思議な種を ${CONFIG.harvestBombCost} 個使って、選んだフルーツを盤面から
+    <div class="sub">コインを ${CONFIG.harvestBombCost} 枚使って、選んだフルーツを盤面から
       まとめて収穫します。ターンを1つ消費します。</div>
     <div class="seedbar">
-      <span class="lbl">🌱 不思議な種</span>
-      <span class="num">×${S.seeds}</span>
+      <span class="lbl">🪙 コイン</span>
+      <span class="num">×${S.coins}</span>
       <span class="cost">1回 ×${CONFIG.harvestBombCost}</span>
     </div>
     ${S.fruitIds.map(id => {
@@ -2596,7 +2601,7 @@ function giveItem(it){
 function rollStore(rareOnly){
   const c = ctx(), n = c.storeSize, pool = [];
   for(const it of ITEMS){
-    if(it.once) continue;     // 枠を取らない即発アイテムは種と交換する専用ショップへ移動した
+    if(it.once) continue;     // 枠を取らない即発アイテムはコインと交換する専用ショップへ移動した
     if(it.unique && S.items.some(x => x.id === it.id)) continue;
     if(S.items.some(x => x.id === it.id && LV(x) >= CONFIG.itemMaxLv)) continue;
     if(it.need && !S.fruitIds.includes(it.need)) continue;
@@ -2659,7 +2664,7 @@ async function finishStore(){
   const f = S.afterStore;
   S.afterStore = null;
   S.busy = true;
-  await refreshFruitSet();       // 果樹園の地図などを取得した場合、その場で盤面へ反映する
+  await refreshFruitSet();       // フルーツ種類が変わるものを取得した場合、その場で盤面へ反映する
   S.busy = false;
   hud();
   // 盤面への反映で連鎖が起きて目標に届くことがあるため、ここでもクリアを判定する。
@@ -2713,8 +2718,8 @@ function renderStore(discardMode){
 
   const rerollCost = () => CONFIG.rerollCost + S.storeRerolls;
   const rareCost = () => rerollCost() + CONFIG.rareRerollCost;
-  const canReroll = S.seeds >= rerollCost();
-  const canRare = S.seeds >= rareCost();
+  const canReroll = S.coins >= rerollCost();
+  const canRare = S.coins >= rareCost();
 
   sheet(`
     <h2>${roundStart ? 'ラウンド開始' : '種を蒔く'}</h2>
@@ -2727,19 +2732,19 @@ function renderStore(discardMode){
     : `${cards}
 
       <div class="seedbar">
-        <span class="lbl">🌱 不思議な種</span>
-        <span class="num">×${S.seeds}</span>
+        <span class="lbl">🪙 コイン</span>
+        <span class="num">×${S.coins}</span>
         <span class="cost">引き直しに ×${rerollCost()}</span>
       </div>
       <div class="row">
         <button class="btn" data-act="reroll" ${canReroll ? '' : 'disabled'}>
-          🌱 引き直す</button>
-        <button class="btn ghost" data-act="skip">取らずに次へ（🌱+${CONFIG.skipSeedReward}）</button>
+          🪙 引き直す（${rerollCost()}）</button>
+        <button class="btn ghost" data-act="skip">取らずに次へ（🪙+${CONFIG.skipSeedReward}）</button>
       </div>
       <div class="row">
         <button class="btn" data-act="rareroll" ${canRare ? '' : 'disabled'}
           style="${canRare ? `border-color:${RARITY.rare.col};color:${RARITY.rare.col}` : ''}">
-          ${RARITY.rare.mark} レアだけを引き直す（🌱${rareCost()}）</button>
+          ${RARITY.rare.mark} レアだけを引き直す（🪙${rareCost()}）</button>
       </div>
       ${full ? '<div class="sub" style="margin-top:8px;color:var(--bad)">枠が満杯です。取得すると手放すアイテムを選びます。</div>' : ''}
 
@@ -2769,22 +2774,22 @@ function renderStore(discardMode){
     });
     const act = el.querySelector('[data-act="reroll"]');
     if(act) act.onclick = () => {
-      if(S.seeds < rerollCost()) return;
-      S.seeds -= rerollCost();           // 残数は再描画で即座に反映される
+      if(S.coins < rerollCost()) return;
+      S.coins -= rerollCost();           // 残数は再描画で即座に反映される
       S.storeRerolls++;                  // 次のリロールはさらに+1個必要になる（ステージごとにリセット）
       rollStore(); renderStore(); hud();
     };
     const rr = el.querySelector('[data-act="rareroll"]');
     if(rr) rr.onclick = () => {
-      if(S.seeds < rareCost()) return;
-      S.seeds -= rareCost();
+      if(S.coins < rareCost()) return;
+      S.coins -= rareCost();
       S.storeRerolls++;
       rollStore(true);                   // レアだけで引き直す
       renderStore(); hud();
     };
     const sk = el.querySelector('[data-act="skip"]');
     if(sk) sk.onclick = () => {
-      S.seeds += CONFIG.skipSeedReward;
+      S.coins += CONFIG.skipSeedReward;
       toast(`種 +${CONFIG.skipSeedReward}`);
       finishStore();
     };
@@ -2799,7 +2804,7 @@ function renderStore(discardMode){
   });
 }
 
-/* ---------------- 即発アイテムの種ショップ（枠を取らないぶん、種と交換する） ---------------- */
+/* ---------------- 即発アイテムのショップ（枠を取らないぶん、コインと交換する） ---------------- */
 function openInstantShop(back){
   if(typeof back !== 'function') back = null;
   const done = () => back ? back() : closeSheet();
@@ -2807,24 +2812,24 @@ function openInstantShop(back){
 
   const draw = () => sheet(`
     <h2>即発アイテム</h2>
-    <div class="sub">枠を消費しない代わりに、不思議な種と交換する。取った瞬間だけ効果を発揮する。</div>
+    <div class="sub">枠を消費しない代わりに、コインと交換する。取った瞬間だけ効果を発揮する。</div>
     <div class="seedbar">
       <span class="lbl">🌱 不思議な種</span>
       <span class="num">×${S.seeds}</span>
       <span class="cost">1個 ×${CONFIG.instantItemCost}</span>
     </div>
     ${instants.map(it => `
-      <button class="card" data-buy="${it.id}" ${S.seeds < CONFIG.instantItemCost ? 'disabled style="opacity:.4"' : ''}>
+      <button class="card" data-buy="${it.id}" ${S.coins < CONFIG.instantItemCost ? 'disabled style="opacity:.4"' : ''}>
         <span class="ic">${it.ic}</span>
         <span style="flex:1"><span class="t">${it.n}</span><div class="d">${descOf(it)}</div></span>
-        <span class="chk" style="font-size:11px;color:var(--lantern)">🌱${CONFIG.instantItemCost}</span>
+        <span class="chk" style="font-size:11px;color:var(--lantern)">🪙${CONFIG.instantItemCost}</span>
       </button>`).join('')}
     <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="c">戻る</button></div>
   `, el => {
     el.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
-      if(S.seeds < CONFIG.instantItemCost) return;
+      if(S.coins < CONFIG.instantItemCost) return;
       const it = instants.find(x => x.id === b.dataset.buy);
-      S.seeds -= CONFIG.instantItemCost;
+      S.coins -= CONFIG.instantItemCost;
       giveItem(it);            // once系はgiveItem内でonGetだけ呼ばれ、枠は消費しない
       hud();
       draw();
@@ -3074,8 +3079,8 @@ async function stageClear(){
       if(cr) cr.onclick = () => drawCarry(false);
       const rr = el.querySelector('[data-act="reroll"]');
       if(rr) rr.onclick = () => {
-        if(S.seeds < rerollCost()) return;
-        S.seeds -= rerollCost();
+        if(S.coins < rerollCost()) return;
+        S.coins -= rerollCost();
         rerolls++;
         rollOffer();
         hud();
@@ -3121,18 +3126,18 @@ async function stageClear(){
           <span class="chk">✓</span>
         </button>`).join('')}
       <div class="seedbar">
-        <span class="lbl">🌱 不思議な種</span>
-        <span class="num">×${S.seeds}</span>
+        <span class="lbl">🪙 コイン</span>
+        <span class="num">×${S.coins}</span>
         <span class="cost">${nextCarryCost() === null
           ? '枠は上限です'
-          : `次の枠 ${nextCarryCost()}個`}</span>
+          : `次の枠 ${nextCarryCost()}コイン`}</span>
       </div>
       ${nextCarryCost() !== null ? `<button class="btn" data-act="buy"
-        ${S.seeds < nextCarryCost() ? 'disabled' : ''} style="width:100%">
-        🎒 持ち越し枠を1つ増やす（🌱${nextCarryCost()}）</button>` : ''}
+        ${S.coins < nextCarryCost() ? 'disabled' : ''} style="width:100%">
+        🎒 持ち越し枠を1つ増やす（🪙${nextCarryCost()}）</button>` : ''}
       <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
         累積アイテムのカウンターはステージが変わるとリセットされます。<br>
-        増やした持ち越し枠はこの先ずっと使えます（種は次の農園へ持ち越せません）。
+        増やした持ち越し枠はこの先ずっと使えます。
       </div>
       <div class="row" style="margin-top:12px"><button class="btn primary" data-act="c">${thenNext ? '次の農園へ' : '決定'}</button></div>
     `, el => {
@@ -3147,8 +3152,8 @@ async function stageClear(){
       const buy = el.querySelector('[data-act="buy"]');
       if(buy) buy.onclick = () => {
         const cost = nextCarryCost();
-        if(cost === null || S.seeds < cost) return;
-        S.seeds -= cost;
+        if(cost === null || S.coins < cost) return;
+        S.coins -= cost;
         S.carrySlots++;
         hud();
         toast(`持ち越し枠が ${carryLimit()} に増えた`);
@@ -3520,7 +3525,7 @@ function openStageSelect(back){
       startStage();
     });
     el.querySelector('[data-act="seed"]').onclick = () => { S.seeds += 10; hud(); toast('種 +10'); };
-    el.querySelector('[data-act="bomb"]').onclick = () => { S.seeds += 10; hud(); toast('種 +10'); };
+    el.querySelector('[data-act="bomb"]').onclick = () => { S.coins += 10; hud(); toast('コイン +10'); };
     el.querySelector('[data-act="item"]').onclick = () => {
       const c = ctx(), max = Math.min(CONFIG.maxSlots, S.slots + c.slotAdd);
       if(S.items.length >= max){ toast('アイテム枠が満杯'); return; }
@@ -3606,7 +3611,7 @@ function openLevels(back){
     </div>
     <table class="tbl">${itemRows}</table>
 
-    <h3 class="sec">即発アイテム（種と交換）</h3>
+    <h3 class="sec">即発アイテム（コインと交換）</h3>
     <table class="tbl">${onceRows}</table>
 
     <div class="row" style="margin-top:16px">
@@ -4121,8 +4126,8 @@ $('btnHelp').onclick = () => {
       ステージクリア時に、アイテムを最大 ${carryLimit()} 個まで次の農園へ連れていける。
       ${carryLimit()}個以下ならすべて自動で持ち越され、それを超える場合は
       レベルの高い${carryLimit()}個が既定で選ばれる（あとから選び直せる）。
-      持ち越し枠は、その画面で不思議な種を払うと増やせる
-      （${CONFIG.carrySlotCosts.join('個 → ')}個）。枠は次の農園にも引き継がれる。
+      持ち越し枠は、その画面でコインを払うと増やせる
+      （${CONFIG.carrySlotCosts.join(' → ')}コイン）。枠は次の農園にも引き継がれる。
       基本倍率はたからもの「継承の苗木」があれば一部を持ち越せる。
       <h3 class="sec">特殊フルーツ</h3>
       まとめて消した数に応じて、その塊の中心にフルーツが1つ残る。次に消したときに発動する。<br>
@@ -4158,13 +4163,18 @@ $('btnHelp').onclick = () => {
       アイテム枠の右上に現在の累積値または Lv が出る。
       <h3 class="sec">不思議な種</h3>
       ラウンド開始時に <b>${CONFIG.roundSeeds}個</b> 配られ、フルーツを消すと
-      ${Math.round(CONFIG.seedChance*100)}% で追加される。ストアで「取らずに次へ」を選んでも
-      <b>+${CONFIG.skipSeedReward}個</b> 手に入る。用途は3つ。<br>
-      ・ストアを引き直す（${CONFIG.rerollCost}個から。引き直すたびに+1、ステージが変わるとリセット）<br>
-      ・<b>ラウンド終了時にコインへ変わる</b>（残った種1個＝${CONFIG.coinPerSeed}コイン）。コインで爆弾を買える<br>
-      ・<b>一斉収穫</b>（${CONFIG.harvestBombCost}個・ターンを1消費して、選んだフルーツを盤面から全部収穫する）<br>
-      ・<b>即発アイテムと交換する</b>（${CONFIG.instantItemCost}個・枠を消費しない。ストア画面の🎫から）<br>
-      ステージが変わると持ち越さずリセットされる。
+      ${Math.round(CONFIG.seedChance*100)}% で追加される。<br>
+      種そのものには使い道がなく、<b>ラウンド終了時にコインへ変わる</b>
+      （残った種1個＝${CONFIG.coinPerSeed}コイン）。稼いだ種をどれだけ残せるかが、次の農園の資金になる。
+
+      <h3 class="sec">コイン 🪙</h3>
+      種から変わったお金。ステージをまたいで貯まる。買えるものは次のとおり。<br>
+      ・ストアを引き直す（${CONFIG.rerollCost}から。引き直すたびに+1、ステージが変わるとリセット）<br>
+      ・${RARITY.rare.mark}レア以上だけを引き直す（上記＋${CONFIG.rareRerollCost}）<br>
+      ・<b>即発アイテムと交換する</b>（${CONFIG.instantItemCost}・枠を消費しない。ストア画面の🎫から）<br>
+      ・<b>一斉収穫</b>（${CONFIG.harvestBombCost}・ターンを1消費して、選んだフルーツを盤面から全部収穫する）<br>
+      ・<b>爆弾</b>（マップの道具屋で ${CONFIG.bombPrice}）／<b>持ち越し枠</b>（${CONFIG.carrySlotCosts.join(' → ')}）<br>
+      ストアで「取らずに次へ」を選ぶと <b>+${CONFIG.skipSeedReward}コイン</b>。
 
       <h3 class="sec">アイテムとたからもの</h3>
       アイテムはそのステージ限り。ターン終了ごとに3択で1つ選ぶ。<br>
