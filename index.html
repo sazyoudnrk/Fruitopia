@@ -353,7 +353,7 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
   </div>
 
   <div class="footbar">
-    <button class="btn" id="btnBomb">💣 種で爆破</button>
+    <button class="btn" id="btnBomb">💣 爆弾</button>
     <button class="btn" id="btnHarvest">🌾 一斉収穫</button>
     <button class="btn ghost" id="btnList">📖 図鑑</button>
     <button class="btn ghost" id="btnHelp">遊び方</button>
@@ -376,8 +376,14 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
    ゲーム内では ⚙ 設定の先頭に表示される。
    ========================================================================= */
-const VERSION = '0.67';
+const VERSION = '0.73';
 const CHANGELOG = [
+  ['0.73', 'マップのボタン表記が逆だったのを修正（クリア済みの農園が「最初からやり直す」に）／賭博師の帽子を+20%に、釣り合いをとって四つ葉+12%・太陽の欠片+8%/Lvへ調整'],
+  ['0.72', 'アイテムを重ねたときの変化を、実際に計算してストアに表示するように（Lv2でどうなるか事前に分かる）／コイン経済を導入：余った種はラウンド終了時にコインへ変わり、マップの道具屋で爆弾を買える。種での即時爆破は廃止し、爆弾は買って持ち歩く道具に'],
+  ['0.71', 'ブラウザに自動保存するように（農園に入るたび保存し、次に開くと続きから）。設定画面から手動保存と削除もできる／クリア後は次の農園へ直行せず、いったんマップへ戻る流れに変更'],
+  ['0.70', '固有効果率を12%→3%に大幅ダウン、関連アイテム（四つ葉・賭博師の帽子・太陽の欠片）を2.5倍に強化／りんごの追加スコアが地力に応じて増加／大収穫祭を「所持時×2.5、5個以上の塊を消すたびに+0.5、上限×10」の育つ倍率に再設計／大物狙いを固定+20からスコア×3に変更／銀の苗床(100個)・複利の帳簿(25個)・ぶどうの醸し壺(24個)の閾値を上げてナーフ／にせもの系の書き換えマス数を5→3に／6種目のフルーツ追加をS4→S8に先送り'],
+  ['0.69', 'アイテム取得後の盤面反映で目標に届いた場合にクリア判定が漏れていたのを修正'],
+  ['0.68', '累積アイテムの説明に「積み上げはそのステージ限り」を自動で付記（永続と誤解されないように）／堆肥箱の説明が「永続的に」となっていたがステージ内限定だったので文言を修正'],
   ['0.67', 'タイトルを「フルートピア（Fruitopia）」に変更／連鎖マークの説明が古い数値のままだったのを修正'],
   ['0.66', 'ホーム画面に追加したとき、りんごのアイコンと「Fruitopia」の名前で表示されるように（アイコン・マニフェストとも単一HTMLに埋め込み）'],
   ['0.65', 'レアリティを3段階に（コモン6：レア3：ハイレア1）。ハイレアはビルドの主軸になる10種／🔗マークを消すと、そのフルーツの固有スコアが永続的に+0.1されるように変更（ステージをまたいで積み上がる）'],
@@ -458,11 +464,12 @@ const CONFIG = {
                           // （出現率が極端に偏ると30個超の塊ができ、DOM生成が
                           //   膨大になって実機で重くなるため。スコア計算自体には影響しない）
   sizeBonus:      15,    // 4個消し以降、1個あたりの追加スコア
-  effectChance:   0.12,  // フルーツ固有効果の基本発生率
+  effectChance:   0.03,  // フルーツ固有効果の基本発生率（ビルドの影響を顕著にするため大幅ダウン）
   seedChance:     1/18,  // 不思議な種の出現率。目安は「18個消えて1つ出るかも」＝通常プレイで3ターンに1個程度
   rerollCost:     1,     // リロールの種消費数
   roundSeeds:     3,     // ラウンド開始時に配られる種（ステージごとにリセット）
-  bombCost:       1,     // 爆弾1回に使う種の数（ターンを1消費する）
+  bombPrice:      4,     // 爆弾1個をコインで買うときの値段
+  coinPerSeed:    1,     // ラウンド終了時、残った種1個が何コインになるか
   harvestBombCost:5,     // 特定フルーツを一斉収穫する爆弾に使う種の数
   treasureReroll: 5,     // たからものの引き直しに必要な種（1回ごとに +1）
   skipSeedReward: 2,     // ストアで「取らずに次へ」を選んだときに貰える種
@@ -490,6 +497,9 @@ const CONFIG = {
                           // （実際の偏りは spawnRateCap が最終的に抑える）
   spawnRateCap:   0.45,  // 1フルーツが盤面で占められる出現率の上限（単色化の防止）
   squareGain:     1,     // 大収穫1回で基礎スコア倍率にいくつ足すか（倍増ではなく加算）
+  festivalStart:  2.5,   // 大収穫祭：所持した瞬間の倍率
+  festivalStep:   0.5,   // 5個以上の塊を消すたびに増える量
+  festivalCap:    10,    // 育ちきったときの上限
   markScoreGain:  0.1,   // 🔗を1つ消すと、そのフルーツの固有スコアが永続的にいくつ増えるか
   markStep:       0.05,  // 連鎖が起きるたびに固有倍率へ加算される量（線形）
   maxSlots:       10,    // 最大アイテム枠
@@ -521,7 +531,7 @@ const CONFIG = {
   rainbowConvert: 10,    // 虹色が同じ種類に塗り替えるマス数
   rainbowMult:    3,     // 虹色が消したフルーツのスコア倍率
   fakeInterval:   3,     // にせもの系アイテムが盤面を書き換える間隔（ターン）
-  fakeCount:      5,     // にせもの系アイテム1個が書き換えるマス数
+  fakeCount:      3,     // にせもの系アイテム1個が書き換えるマス数
   warnTurns:      3,     // 残りこのターン数から警告を出す
 };
 
@@ -539,7 +549,7 @@ const DEFAULT_SPEED = 'slow';
    shape は色に頼らず見分けるためのシルエット。色覚特性の差にも効く。 */
 const FRUITS = [
   { id:'apple',  name:'りんご',   icon:'🍎', color:'#d6392f', shape:'50%', base:10,
-    fx:'力の実',   fxDesc:'追加スコア +45',
+    fx:'力の実',   fxDesc:'追加スコア +45（地力Lvごとに+15）',
     img:'data:image/png;base64,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' },
   { id:'orange', name:'オレンジ', icon:'🍊', color:'#f07c18', shape:'26%', base:10,
     fx:'種袋',     fxDesc:'不思議な種 +1' },
@@ -639,8 +649,9 @@ const ITEMS = [
     d:'3連鎖以上に到達したターンの スコア倍率の上昇量 +0.5',
     apply:c=>c.chain3+=0.5},
   {id:'x2',    n:'大収穫祭',     ic:'🎊', tag:'倍率',
-    d:'スコア倍率 ×2.5。ただしアイテム枠が1つ埋まったままになる（枠 -1）',
-    apply:c=>{ c.mults.push(2.5); c.slotAdd -= 1; }},
+    d:`はじめは ×${CONFIG.festivalStart}。5個以上の塊を消すたびに +${CONFIG.festivalStep} され、`
+      + `最終的に ×${CONFIG.festivalCap} まで育つ。アイテム枠が1つ埋まったままになる（枠 -1）`,
+    apply:c=>{ c.mults.push(S.festivalMult); c.slotAdd -= 1; }},
 
   // --- 倍率系（負・§8）単体では致命的だが、偶数個そろえると爆発する ---
   {id:'moon',  n:'逆さの月',     ic:'🌘', tag:'負倍率', neg:true, d:'スコア倍率 ×-1.2',
@@ -678,7 +689,7 @@ const ITEMS = [
 
   // ---- アイテムを手放すことが得になるアイテム ----
   {id:'compost',n:'堆肥箱',       ic:'♻️', tag:'シナジー',
-    d:'アイテムを手放すたび、そのときの基礎スコアの5%が永続的に上乗せされる',
+    d:'アイテムを手放すたび、そのときの基礎スコアの5%が上乗せされる（そのステージのあいだ持続）',
     apply:(c,s)=>c.baseAdd+=s.compostBonus||0},
   {id:'burnfield',n:'焼き畑',     ic:'🔥', tag:'倍率',
     d:'所持アイテムが3個以下のとき スコア倍率 ×2',
@@ -689,8 +700,8 @@ const ITEMS = [
     d:'残りターンが3以下のとき スコア倍率 ×3',
     apply:(c,s)=>{ if(s.turnsMax - s.turns <= 3) c.mults.push(3); }, late:true},
   {id:'bigcatch',n:'大物狙い',    ic:'🎣', tag:'特殊', unique:true,
-    d:'5個以上の塊でしか収穫できないが、そのぶん基礎スコア +20',
-    apply:c=>{ c.bigOnly=5; c.baseAdd+=20; }},
+    d:'5個以上の塊でしか収穫できないが、そのぶんスコア ×3',
+    apply:c=>{ c.bigOnly=5; c.bigMul=3; }},
 
   // ---- デメリットが裏返って報酬になるアイテム ----
   {id:'debtnote',n:'借金証文',    ic:'📃', tag:'シナジー', unique:true,
@@ -704,11 +715,13 @@ const ITEMS = [
     apply:c=>c.baseAdd+=15*c.negCount, late:true},
 
   // --- 確率系（§7.2） ---
-  {id:'clover',n:'四つ葉',       ic:'🍀', tag:'確率', d:'全フルーツの固有効果率 +25%',
-    apply:c=>c.chanceAdd+=0.25},
+  // 固有効果率の基本値を12%→3%に下げたぶん、ここで効くアイテムは
+  // 2.5倍に強化してある（下げっぱなしだと投資する意味がなくなるため）。
+  {id:'clover',n:'四つ葉',       ic:'🍀', tag:'確率', d:'全フルーツの固有効果率 +12%',
+    apply:c=>c.chanceAdd+=0.12},
   {id:'gamble',n:'賭博師の帽子', ic:'🎩', tag:'確率',
-    d:'固有効果率 +40%／基礎スコア -4',
-    apply:c=>{c.chanceAdd+=0.40;c.baseAdd-=4}},
+    d:'固有効果率 +20%／基礎スコア -4',
+    apply:c=>{c.chanceAdd+=0.20;c.baseAdd-=4}},
   {id:'seedbag',n:'幸運の種袋',  ic:'👝', tag:'確率', d:'種の出現率 +5%',
     apply:c=>c.seedAdd+=0.05},
   {id:'pray',  n:'豊穣の祈り',   ic:'🙏', tag:'確率', d:'種の出現率が2倍（レベルごとに+1倍）',
@@ -817,8 +830,8 @@ const ITEMS = [
     d:'1ターン経過するごとに 基礎スコア +3',
     apply:(c,s,it)=>c.baseAdd += 3*lv(it)},
   // 養殖系：盤面に特殊フルーツを自分で供給する
-  {id:'silvernursery', n:'銀の苗床', ic:'🌱', tag:'累積', track:'clear', every:30, unit:'個', reset:true,
-    d:'フルーツを30個消すごとに、盤面のランダムな1マスを銀にする',
+  {id:'silvernursery', n:'銀の苗床', ic:'🌱', tag:'累積', track:'clear', every:100, unit:'個', reset:true,
+    d:'フルーツを100個消すごとに、盤面のランダムな1マスを銀にする',
     apply:()=>{},
     fire: async () => {
       const pool = [];
@@ -850,8 +863,8 @@ const ITEMS = [
   {id:'compound', n:'複利の実', ic:'📈', tag:'累積', track:'proc', every:1, unit:'回',
     d:'固有効果が1回発動するごとに スコア倍率 ×1.06（掛け算で積み上がる）',
     apply:(c,s,it)=>c.mults.push(bnPow(1.06, lv(it)))},
-  {id:'compoundharvest', n:'複利の帳簿', ic:'📊', tag:'累積', track:'clear', every:15, unit:'個',
-    d:'フルーツを15個消すごとに スコア倍率 ×1.12（掛け算で積み上がる）',
+  {id:'compoundharvest', n:'複利の帳簿', ic:'📊', tag:'累積', track:'clear', every:25, unit:'個',
+    d:'フルーツを25個消すごとに スコア倍率 ×1.12（掛け算で積み上がる）',
     apply:(c,s,it)=>c.mults.push(bnPow(1.12, lv(it)))},
   {id:'compoundchain', n:'複利の渦', ic:'🌪️', tag:'累積', track:'chain', every:2, unit:'連鎖',
     d:'連鎖が2回起きるごとに スコア倍率 ×1.08（掛け算で積み上がる）',
@@ -863,8 +876,8 @@ const ITEMS = [
     fire: async () => { S.seeds += 2; hud(); toast('種まき機：種 +2'); return 0; }},
 
   {id:'grapeburst', n:'ぶどうの醸し壺', ic:'🍷', tag:'累積', need:'grape',
-    track:'fruit:grape', every:12, unit:'個', reset:true,
-    d:'ぶどうを12個消すごとに、盤面のぶどうを一斉消去',
+    track:'fruit:grape', every:24, unit:'個', reset:true,
+    d:'ぶどうを24個消すごとに、盤面のぶどうを一斉消去',
     apply:()=>{},
     fire: async (c, chainMul) => {
       const cells = [];
@@ -984,7 +997,15 @@ const TREASURES = [
 ];
 
 // 表示用の説明文（たからものはレベルに応じて変わる）
-function descOf(x){ return x.dl ? x.dl(LV(x)) : x.d; }
+/* 効果の説明文。累積アイテムは、カウンターがステージごとにリセットされる
+   （＝そのステージ限りで積み上がる）ことを説明文に自動で添える。
+   「積み上がる」だけだと永続と誤解されやすいため。 */
+function descOf(x){
+  const base = x.dl ? x.dl(LV(x)) : x.d;
+  if(x.track && !/永続|そのステージ/.test(base))
+    return base + '（積み上げはそのステージ限り）';
+  return base;
+}
 
 /* ---------------- ステージ（§5） ---------------- */
 /* ステージ目標。S1〜S5はクリア率80%前後、S15前後で20%前後になるよう調整。
@@ -993,11 +1014,11 @@ const STAGES = [
   {name:'村はずれの空き地', w:8, h:8,  turns:9,  target:1200,   fruits:5},
   {name:'朝もやの果樹園',   w:8, h:8,  turns:10, target:2200,   fruits:5},
   {name:'石垣のいちご畑',   w:7, h:7,  turns:12, target:4000,   fruits:5},
-  {name:'風車のある丘',     w:8, h:8,  turns:15, target:6000,   fruits:6},
-  {name:'王立温室',         w:9, h:9,  turns:16, target:9000,   fruits:6},
+  {name:'風車のある丘',     w:8, h:8,  turns:15, target:6000,   fruits:5},
+  {name:'王立温室',         w:9, h:9,  turns:16, target:9000,   fruits:5},
   {name:'痩せた岩の段々畑', w:6, h:6,  turns:16, target:13000,  fruits:5},
-  {name:'霧の大農園',       w:8, h:8,  turns:18, target:19000,  fruits:6},
-  {name:'国営中央農場',     w:10,h:10, turns:21, target:28000,  fruits:6}
+  {name:'霧の大農園',       w:8, h:8,  turns:18, target:19000,  fruits:5},
+  {name:'国営中央農場',     w:10,h:10, turns:21, target:28000,  fruits:6}   // 6種目はここから
 ];
 /* S9以降は自動生成。国民の食糧難を解決したあと、諸国へ広げていく段。
    1段ごとに1.85倍。地力やたからものの成長を上回るペースにして、
@@ -1028,6 +1049,8 @@ const S = {
   seeds:0, items:[], treasures:[], slots:CONFIG.startSlots, lifetime:0, maxStage:0,
   baseMult:1, carriedMult:1, carryOver:[], fruitMark:{}, harvestBoost:1, discarded:0,
   carrySlots:0,        // 種で買い足した持ち越し枠の数（永続）
+  coins:0,             // ラウンド終了時に種から変換されるお金（永続）
+  bombs:0,             // 買って持っている爆弾の数（永続）
   w:8, h:8, grid:[], fruitIds:[], stageCleared:0, counters:{},
   busy:false, sel:null, bombMode:false, uid:0, store:null, afterStore:null, storeRerolls:0,
   spd:(SPEEDS.find(s => s.id === DEFAULT_SPEED) || SPEEDS[1]).v
@@ -1119,14 +1142,65 @@ function soilNext(){
   return bnShiftExp(base, soilLevel());       // base × 10^Lv をBigNumberのまま計算
 }
 
+/* ---------------- レベルを上げたときの差分プレビュー ----------------
+   説明文は固定のテキストなので、そこから「次のレベルでどうなるか」は読めない。
+   そこで apply() を空の集計コンテキストに対して実際に走らせ、
+   レベルを1つ上げた場合との差を取って、変化した項目だけを文章にする。 */
+const PREVIEW_LABEL = {
+  baseAdd:'基礎スコア', chanceAdd:'固有効果率', chainAdd:'連鎖倍率の上昇量',
+  sizeAdd:'4個以上のボーナス', seedAdd:'種の出現率', seedScore:'種を得たときのスコア',
+  seedMul:'種の出現倍率', bananaRange:'バナナの射程', grapeBonus:'ぶどうの上昇量',
+  slotAdd:'アイテム枠', turnAdd:'制限ターン', storeSize:'ストアの候補',
+  bombAdd:'爆弾の範囲', bombMult:'爆弾のスコア倍率', typeCut:'フルーツの種類',
+  goldRange:'黄金の範囲', goldMultAdd:'黄金の倍率', silverEatAdd:'銀の虫食い数',
+  silverMultAdd:'銀の倍率', rainbowMultAdd:'虹の倍率', rainbowConvAdd:'虹の塗り替え数',
+  blackMultAdd:'黒の倍率', blackChanceMul:'黒の出現倍率', fakeCountAdd:'にせものの書き換え数',
+  seedTileBonus:'🌱から得る種', squareMul:'大収穫の伸び', startSeeds:'開始時の種',
+  startItems:'開始時のアイテム', carryMult:'基本倍率の持ち越し', fakeBonus:'にせものの倍率'
+};
+function previewAt(it, level){
+  // その1個だけを、指定レベルで集計した結果を返す。
+  // ctx() と同じく「レベルの回数だけ apply を繰り返す」方式にそろえる
+  // （多くのアイテムは apply 内でレベルを見ていないため）。
+  const c = blankCtx();
+  const fake = {...it, level};
+  c._once = new Set();
+  const once = (k, f) => { if(c._once.has(k)) return; c._once.add(k); f(); };
+  try{
+    for(let k=0;k<level;k++) it.apply && it.apply(c, S, fake, once);
+  }catch(e){ return null; }
+  return c;
+}
+function levelUpNote(it){
+  if(it.track || it.once) return '';          // 累積系はレベルの意味が違うので出さない
+  const now = previewAt(it, LV(it));
+  const next = previewAt(it, LV(it) + 1);
+  if(!now || !next) return '';
+  const parts = [];
+  const PCT = {chanceAdd:1, seedAdd:1, carryMult:1};   // 割合で表す項目
+  for(const k in PREVIEW_LABEL){
+    const a = now[k], b = next[k];
+    if(typeof a !== 'number' || typeof b !== 'number' || a === b) continue;
+    const d = b - a;
+    const txt = PCT[k] ? `${Math.round(d * 100)}%` : `${Math.round(d * 100) / 100}`;
+    parts.push(`${PREVIEW_LABEL[k]} ${d >= 0 ? '+' : ''}${txt}`);
+  }
+  // 倍率は掛け算なので、積を比べる
+  const prod = arr => arr.reduce((x, y) => x * (isBN(y) ? bnNum(y) : y), 1);
+  const ma = prod(now.mults), mb = prod(next.mults);
+  if(Math.abs(ma - mb) > 1e-9) parts.push(`スコア倍率 ${fmtMult(ma)} → ${fmtMult(mb)}`);
+  return parts.length ? parts.join(' ／ ') : '';
+}
+
 /* ---------------- 効果集計（ビルドの心臓部） ---------------- */
-function ctx(){
-  const c = {
+/* 集計用の空のコンテキスト。ctx() と、レベル差分プレビューの両方で使う。 */
+function blankCtx(){
+  return {
     baseAdd:0, fruitScore:{}, fruitMul:{}, fruitChance:{}, chanceAdd:0,
     seedAdd:0, seedMul:1, seedScore:0,
     chainAdd:0, sizeAdd:0, mults:[], negCount:0, invert:false, deceit:0,
     bananaRange:0, grapeBonus:0, perProc:0, chain3:0, typeCut:0,
-    squareMul:0, seedTileBonus:0, discardBonus:0, bigOnly:0,
+    squareMul:0, seedTileBonus:0, discardBonus:0, bigOnly:0, bigMul:1,
     spawnMul:{}, convert:[], topSpawn:0, convAdd:0, fakeBonus:0,
     goldCut:0, goldRange:0, goldMultAdd:0,
     silverCut:0, silverEatAdd:0, silverMultAdd:0,
@@ -1136,6 +1210,9 @@ function ctx(){
     storeSize:CONFIG.storeSize, slotAdd:0, bombAdd:0, bombMult:1,
     startSeeds:0, startItems:0, turnAdd:0
   };
+}
+function ctx(){
+  const c = blankCtx();
   const all = [...S.treasures, ...S.items];
   // どのアイテムがどの倍率を出しているか記録できるよう push を差し替える
   let cur = null;
@@ -1667,8 +1744,8 @@ function hud(){
       ${LV(t) > 1 ? `<span class="cnt">Lv${LV(t)}</span>` : ''}
       <span class="ic">${t.ic}</span><span class="nm">${t.n}</span></button>`;
   }).join('');
-  $('btnBomb').disabled = S.seeds < CONFIG.bombCost || S.busy;
-  $('btnBomb').textContent = S.bombMode ? '💣 対象をタップ' : `💣 爆破 🌱${CONFIG.bombCost}`;
+  $('btnBomb').disabled = S.bombs < 1 || S.busy;
+  $('btnBomb').textContent = S.bombMode ? '💣 対象をタップ' : `💣 爆弾 ×${S.bombs}`;
   const hb = $('btnHarvest');
   if(hb){
     hb.disabled = S.seeds < CONFIG.harvestBombCost || S.busy;
@@ -2086,7 +2163,7 @@ async function resolve(manual, swapCells){
             floatText(i, f.fx, f.color, {cls:'fx', dy:0.58, delay: T(Math.min(k,6)*34)});
           }
           switch(cell.f){
-            case 'apple':  gBonus += 45; break;
+            case 'apple':  gBonus += 45 + soilLevel() * 15; break;   // 地力が高いほど伸びる
             case 'orange': seedGain += 1; break;
             case 'banana': {
               const r = 1 + c.bananaRange, x = i%S.w, y = (i/S.w)|0;
@@ -2120,7 +2197,7 @@ async function resolve(manual, swapCells){
         ? 80 * LV(S.items.find(x => x.id === 'surveyor')) : 0;
       // 大物狙い：規定サイズ未満の塊からは収穫できない
       const tooSmall = c.bigOnly && g.length < c.bigOnly;
-      const gScore = tooSmall ? 0 : (gBase + sizeB + squareB + gBonus) * gMul * chainMul;
+      const gScore = tooSmall ? 0 : (gBase + sizeB + squareB + gBonus) * gMul * chainMul * c.bigMul;
       raw += gScore;
       // グループの合計を中央にまとめて表示
       const cx = g.reduce((a,i) => a + (i%S.w), 0) / g.length;
@@ -2163,6 +2240,15 @@ async function resolve(manual, swapCells){
       announce('大 収 穫 ！', 'var(--lantern)');
       floatXY(sx + 1, sy + 1, `基礎スコア ×${S.harvestBoost}`, 'var(--lantern)', {cls:'grp'});
       await sleep(paced(T(760)));
+    }
+
+    // 🎊大収穫祭：5個以上の塊を消すたびに育つ（所持しているときだけ）
+    if(S.items.some(x => x.id === 'x2') && S.festivalMult < CONFIG.festivalCap){
+      for(const g of groups){
+        if(g.length < 5) continue;
+        S.festivalMult = Math.min(CONFIG.festivalCap,
+          Math.round((S.festivalMult + CONFIG.festivalStep) * 100) / 100);
+      }
     }
 
     // まとめ消しの中心に特殊フルーツが残る（4個で銀、5個で黄金）
@@ -2383,8 +2469,8 @@ function bombZone(idx, r, c){
 async function useBomb(idx){
   S._resolveStart = Date.now();      // 安全弁：この呼び出しからの経過時間を計る
   const c = ctx(), r = CONFIG.bombRadius + c.bombAdd;
-  if(S.seeds < CONFIG.bombCost){ S.bombMode = false; hud(); return; }
-  S.seeds -= CONFIG.bombCost;             // 種をそのまま爆弾として使う
+  if(S.bombs < 1){ S.bombMode = false; hud(); return; }
+  S.bombs--;                              // 買っておいた爆弾を1つ使う
   S.bombMode = false;
   board.classList.remove('bombing');
   S.busy = true;
@@ -2576,6 +2662,9 @@ async function finishStore(){
   await refreshFruitSet();       // 果樹園の地図などを取得した場合、その場で盤面へ反映する
   S.busy = false;
   hud();
+  // 盤面への反映で連鎖が起きて目標に届くことがあるため、ここでもクリアを判定する。
+  // これが無いと、達成済みなのに次のターンへ進んでしまう。
+  if(bnCompare(S.harvest, S.target) >= 0){ await stageClear(); return; }
   if(f) f(); else turnReady();
 }
 
@@ -2595,14 +2684,14 @@ function renderStore(discardMode){
          <span class="tag">${it.tag}</span>
          ${own ? `<span class="tag" style="border-color:var(--lantern);color:var(--lantern)">${
            maxed ? `Lv${LV(own)} 上限` : `Lv${LV(own)} → Lv${LV(own)+1}`}</span>` : ''}</span>
-       <div class="d">${it.d}${own && !maxed ? '<br><b style="color:var(--lantern)">重ねると効果がもう一段ぶん乗る（枠は消費しない）</b>' : ''}</div></span>
+       <div class="d">${descOf(it)}${own && !maxed ? (n => `<br><b style="color:var(--lantern)">重ねると Lv${LV(own)+1} へ（枠は消費しない）${n ? '：' + n : ''}</b>`)(levelUpNote(own)) : ''}</div></span>
      </button>`;
   }).join('');
 
   const dropList = S.items.map((it,i) =>
     `<button class="card ${it.neg?'neg':''}" data-drop="${i}">
        <span class="ic">${it.ic}</span>
-       <span style="flex:1"><span class="t">${it.n}</span><div class="d">${it.d}</div></span>
+       <span style="flex:1"><span class="t">${it.n}</span><div class="d">${descOf(it)}</div></span>
      </button>`).join('');
 
   // 現在のビルドを、リロール画面から離れずに確認できる一覧
@@ -2610,7 +2699,7 @@ function renderStore(discardMode){
     ? S.items.map(it => `<div class="ownrow ${it.neg?'neg':''}">
         <span class="ic">${it.ic}</span>
         <span class="t">${it.n}</span>
-        <span class="d">${it.d}</span>
+        <span class="d">${descOf(it)}</span>
         ${it.track ? `<span class="lv">${it.reset ? cnt(it.track) : 'Lv'+lv(it)}</span>` : ''}
       </div>`).join('')
     : `<div class="ownrow"><span class="d" style="color:var(--dim)">まだアイテムを持っていません</span></div>`;
@@ -2727,7 +2816,7 @@ function openInstantShop(back){
     ${instants.map(it => `
       <button class="card" data-buy="${it.id}" ${S.seeds < CONFIG.instantItemCost ? 'disabled style="opacity:.4"' : ''}>
         <span class="ic">${it.ic}</span>
-        <span style="flex:1"><span class="t">${it.n}</span><div class="d">${it.d}</div></span>
+        <span style="flex:1"><span class="t">${it.n}</span><div class="d">${descOf(it)}</div></span>
         <span class="chk" style="font-size:11px;color:var(--lantern)">🌱${CONFIG.instantItemCost}</span>
       </button>`).join('')}
     <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="c">戻る</button></div>
@@ -2749,6 +2838,7 @@ function openInstantShop(back){
    ステージ進行
    ========================================================================= */
 function startStage(skipIntro){
+  autoSave();                      // このステージに入った時点の状態を保存する
   const st = stageData(S.stage);
   S.w = st.w; S.h = st.h;
   S.target = st.target;
@@ -2761,6 +2851,7 @@ function startStage(skipIntro){
   S.carriedMult = 1;
   S.harvestBoost = 1;              // 3×3の大収穫で上がる、盤面全体の基礎スコア倍率
   S.discarded = 0;                 // このステージでアイテムを手放した回数
+  S.festivalMult = CONFIG.festivalStart;  // 🎊大収穫祭が育てていく倍率
   S.compostBonus = 0;              // 堆肥箱で積み上げた基礎スコア（ステージ内で永続）
   S.items = [];
   const c1 = ctx();                       // アイテムをリセットした状態でたからものを再評価
@@ -2863,6 +2954,10 @@ async function stageClear(){
     await sleep(T(500));
   }
 
+  // 残った種はコインになる（種はステージをまたがないが、コインは残る）
+  const coinGain = S.seeds * CONFIG.coinPerSeed;
+  if(coinGain > 0){ S.coins += coinGain; S.seeds = 0; hud(); }
+
   const soilBefore = soilLevel();
   S.lifetime = bnAdd(S.lifetime, bnCompare(S.harvest, 0) > 0 ? S.harvest : 0);   // 累計収穫量は永続（地力の元）
   const soilAfter = soilLevel();
@@ -2885,7 +2980,15 @@ async function stageClear(){
   };
   rollOffer();
 
-  const nextStage = (skipIntro) => { S.stage++; closeSheet(); startStage(skipIntro === true); };
+  // クリア後はマップへ戻る。次にどこへ向かうかはマップ上で選ぶ。
+  // （skipIntro は以前の直行フロー用の引数。マップ経由になったので使わない）
+  const nextStage = () => {
+    S.stage++;
+    S.carriedMult = S.carriedMult;   // 持ち越しはそのまま保持
+    autoSave();                      // マップに戻る時点で保存しておく
+    closeSheet();
+    openMap();
+  };
   // たからものを選んだ直後の遷移。持ち越すアイテムがあるなら、その選択画面を
   // 挟んでから次の農園へ進む（枠を種で増やすのもこの画面で行う）。
   const afterTreasure = () => { if(S.items.length) drawCarry(true); else nextStage(true); };
@@ -2913,6 +3016,7 @@ async function stageClear(){
       ${S.baseMult > 1 ? `基本倍率 <b>×${S.baseMult}</b>${carryFrac > 0
         ? ` → <b style="color:var(--lantern)">×${Math.round(S.carriedMult*100)/100} を持ち越し</b>`
         : '（持ち越しには「継承の苗木」が必要）'}<br>` : ''}
+      ${coinGain ? `余った種 <b>${coinGain}</b> 個が <b style="color:var(--lantern)">🪙${coinGain} コイン</b> になった（所持 🪙${S.coins}）<br>` : ''}
       累計収穫量 <b>${fmtScore(S.lifetime)}</b>
       ${soilAfter > soilBefore
         ? `／ <b style="color:var(--lantern)">地力が Lv${soilAfter} に上がった（基礎スコア +${CONFIG.soilGain * soilAfter}）</b>`
@@ -3013,7 +3117,7 @@ async function stageClear(){
           <span style="flex:1"><span class="t">${it.n}
             ${LV(it) > 1 ? `<span class="tag">Lv${LV(it)}</span>` : ''}
             ${it.turnsLeft !== undefined ? `<span class="tag">残り${it.turnsLeft}ターン</span>` : ''}</span>
-            <div class="d">${it.d}</div></span>
+            <div class="d">${descOf(it)}</div></span>
           <span class="chk">✓</span>
         </button>`).join('')}
       <div class="seedbar">
@@ -3129,6 +3233,9 @@ function stageFail(){
 function newGame(){
   S.stage = 0; S.slots = CONFIG.startSlots; S.treasures = []; S.uid = 0;
   S.lifetime = 0; S.maxStage = 0; S.carrySlots = 0; S.fruitMark = {};
+  S.coins = 0; S.bombs = 0;
+  S.items = []; S.carryOver = []; S.seeds = 0;
+  clearAutoSave();                 // 最初からやり直すので、古い保存は消す
   startStage();
 }
 
@@ -3174,13 +3281,27 @@ function openMap(back){
       </div>
       <div class="row" style="margin-top:10px">
         <button class="btn primary" data-act="go" ${lock ? 'disabled' : ''}>
-          ${sel === S.stage ? 'この農園を最初からやり直す' : 'この農園へ向かう'}</button>
+          ${sel < S.maxStage ? 'この農園を最初からやり直す' : 'この農園へ向かう'}</button>
       </div>
       <div class="doc" style="font-size:11px;margin-top:8px;color:var(--dim)">
         農園を移ると、持っているアイテムは畑に還ります。たからものと地力は引き継がれます。<br>
         地力 Lv${soilLevel()} ／ 累計収穫 ${fmtScore(S.lifetime)}
       </div>
-      <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="c">戻る</button></div>
+
+      <h3 class="sec">道具屋</h3>
+      <div class="seedbar">
+        <span class="lbl">🪙 コイン</span>
+        <span class="num">×${S.coins}</span>
+        <span class="cost">💣 爆弾 ×${S.bombs}</span>
+      </div>
+      <button class="btn" data-act="buybomb" style="width:100%"
+        ${S.coins < CONFIG.bombPrice ? 'disabled' : ''}>
+        💣 爆弾を1つ買う（🪙${CONFIG.bombPrice}）</button>
+      <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
+        余った不思議な種は、農園を出るときにコインへ変わります。
+        爆弾はいつでも盤面で使えます（ターンを1消費）。
+      </div>
+      ${back ? '<div class="row" style="margin-top:12px"><button class="btn ghost" data-act="c">戻る</button></div>' : ''}
     `, el => {
       el.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
         const i = +b.dataset.go;
@@ -3193,12 +3314,20 @@ function openMap(back){
         closeSheet();
         startStage();
       };
-      el.querySelector('[data-act="c"]').onclick = done;
+      const bb = el.querySelector('[data-act="buybomb"]');
+      if(bb) bb.onclick = () => {
+        if(S.coins < CONFIG.bombPrice) return;
+        S.coins -= CONFIG.bombPrice;
+        S.bombs++;
+        autoSave(); hud(); draw();
+      };
+      const cb = el.querySelector('[data-act="c"]');
+      if(cb) cb.onclick = done;
 
       // 現在地が見えるところまでスクロールしておく
       const sc = document.getElementById('mapScroll');
       if(sc) sc.scrollLeft = Math.max(0, sel * 90 - 120);
-    }, done);
+    }, back ? done : null);   // クリア後は農園を選ぶまで閉じられない
   };
   draw();
 }
@@ -3212,10 +3341,38 @@ function saveText(){
     v:VERSION,
     stage:S.stage, maxStage:S.maxStage, slots:S.slots, seeds:S.seeds,
     lifetime:S.lifetime, spd:S.spd, carriedMult:S.carriedMult, carrySlots:S.carrySlots,
-    fruitMark:S.fruitMark,
+    fruitMark:S.fruitMark, coins:S.coins, bombs:S.bombs,
     items:S.items.map(i => [i.id, LV(i)]),
     treasures:S.treasures.map(t => [t.id, LV(t)])
   });
+}
+
+/* ---------------- ブラウザへの自動保存 ----------------
+   既存の saveText / loadText をそのまま使い、localStorage に置くだけ。
+   保存はステージをクリアした時だけ行う（毎ターン書くと負荷が高く、
+   途中で閉じても失うのは1ステージ分で済む）。
+   プライベートモードなどで localStorage が使えない環境でも
+   ゲーム自体は動き続けるよう、すべて try/catch で囲う。 */
+const SAVE_KEY = 'fruitopia-save';
+
+function autoSave(){
+  try{
+    localStorage.setItem(SAVE_KEY, saveText());
+    return true;
+  }catch(e){ return false; }        // 保存できなくてもプレイは続行できる
+}
+function hasAutoSave(){
+  try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; }
+}
+function autoLoad(){
+  try{
+    const txt = localStorage.getItem(SAVE_KEY);
+    if(!txt) return {ok:false, msg:'保存データがありません'};
+    return loadText(txt);
+  }catch(e){ return {ok:false, msg:'保存データを読み取れませんでした'}; }
+}
+function clearAutoSave(){
+  try{ localStorage.removeItem(SAVE_KEY); return true; }catch(e){ return false; }
 }
 
 function loadText(txt){
@@ -3234,6 +3391,8 @@ function loadText(txt){
   S.carriedMult = Math.max(1, +o.carriedMult || 1);
   S.carrySlots = Math.min(CONFIG.carrySlotCosts.length, Math.max(0, o.carrySlots | 0));
   S.fruitMark = (o.fruitMark && typeof o.fruitMark === 'object') ? o.fruitMark : {};
+  S.coins = Math.max(0, o.coins | 0);
+  S.bombs = Math.max(0, o.bombs | 0);
   S.carryOver = [];
   if(o.spd) { S.spd = +o.spd; applySpeed(); }
 
@@ -3267,8 +3426,18 @@ function openSaveLoad(back){
   const done = () => back ? back() : closeSheet();
   const draw = (note) => sheet(`
     <h2>セーブ / ロード</h2>
-    <div class="sub">開発用のテキスト保存です。バージョンをまたぐ互換は保証しません。</div>
+    <div class="sub">このブラウザには自動で保存されます。テキストは端末をまたいで移すとき用です。</div>
     ${note ? `<div class="sub" style="color:var(--lantern)">${note}</div>` : ''}
+
+    <h3 class="sec">このブラウザへの自動保存</h3>
+    <div class="doc" style="font-size:11.5px;color:var(--dim)">
+      農園に入るたびに自動で保存され、次に開いたときは続きから始まります。
+      ${hasAutoSave() ? '<b style="color:var(--lantern)">保存データがあります。</b>' : '保存データはまだありません。'}
+    </div>
+    <div class="row">
+      <button class="btn" data-act="autosave">💾 いますぐ保存</button>
+      <button class="btn ghost" data-act="wipe">🗑️ 保存を消す</button>
+    </div>
 
     <h3 class="sec">書き出し</h3>
     <div class="doc" style="font-size:11.5px;color:var(--dim)">
@@ -3286,6 +3455,19 @@ function openSaveLoad(back){
 
     <div class="row" style="margin-top:14px"><button class="btn ghost" data-act="c">戻る</button></div>
   `, el => {
+    el.querySelector('[data-act="autosave"]').onclick = () => {
+      draw(autoSave() ? 'このブラウザに保存しました' : 'この環境では保存できませんでした');
+    };
+    el.querySelector('[data-act="wipe"]').onclick = () => sheet(
+      `<h2>保存データを消す</h2>
+       <div class="sub">次に開いたときは最初から始まります。</div>
+       <div class="row" style="margin-top:12px">
+         <button class="btn danger" data-act="y">消す</button>
+         <button class="btn ghost" data-act="n">やめる</button></div>`,
+      e2 => {
+        e2.querySelector('[data-act="y"]').onclick = () => { clearAutoSave(); draw('保存データを消しました'); };
+        e2.querySelector('[data-act="n"]').onclick = () => draw();
+      }, () => draw());
     el.querySelector('[data-act="copy"]').onclick = () => {
       const ta = document.getElementById('saveOut');
       ta.removeAttribute('readonly');
@@ -3397,7 +3579,7 @@ function openLevels(back){
         return `<tr${mine ? ' style="background:#FFF3DE"' : ''}>
           <td class="ic">${it.ic}</td>
           <td>${it.n}${mine ? `<span class="tag">所持 Lv${LV(mine)}</span>` : ''}
-            <div style="font-size:10.5px;color:var(--dim)">${it.d}</div></td>
+            <div style="font-size:10.5px;color:var(--dim)">${descOf(it)}</div></td>
           <td style="font-size:10px;color:var(--lantern);max-width:96px;white-space:normal">${note}</td>
         </tr>`;
       }).join('');
@@ -3405,7 +3587,7 @@ function openLevels(back){
 
   const onceRows = ITEMS.filter(i => i.once).map(it =>
     `<tr><td class="ic">${it.ic}</td><td>${it.n}
-      <div style="font-size:10.5px;color:var(--dim)">${it.d}</div></td>
+      <div style="font-size:10.5px;color:var(--dim)">${descOf(it)}</div></td>
       <td style="font-size:10px;color:var(--dim)">1回限り<br>枠を使わない</td></tr>`).join('');
 
   sheet(`
@@ -3696,7 +3878,7 @@ function openBreakdown(back){
     <table class="tbl">
       <tr><td class="ic">🌱</td><td>いま持っている種</td><td>${S.seeds}</td></tr>
       <tr><td class="ic">💣</td><td>爆弾1回の消費 ／ 効果範囲</td>
-        <td>${CONFIG.bombCost} ／ 半径${CONFIG.bombRadius + c.bombAdd}</td></tr>
+        <td>コイン${CONFIG.bombPrice} ／ 半径${CONFIG.bombRadius + c.bombAdd}</td></tr>
       <tr><td class="ic">🎛️</td><td>爆弾で消したフルーツの倍率</td>
         <td>${fmtMult(c.bombMult)}</td></tr>
     </table>
@@ -3826,7 +4008,7 @@ document.addEventListener('click', e => {
 
 $('btnHarvest').onclick = () => { if(!S.busy) openHarvestBomb(); };
 $('btnBomb').onclick = () => {
-  if(S.seeds < CONFIG.bombCost || S.busy) return;
+  if(S.bombs < 1 || S.busy) return;
   S.bombMode = !S.bombMode;
   board.classList.toggle('bombing', S.bombMode);
   hud();
@@ -3979,7 +4161,7 @@ $('btnHelp').onclick = () => {
       ${Math.round(CONFIG.seedChance*100)}% で追加される。ストアで「取らずに次へ」を選んでも
       <b>+${CONFIG.skipSeedReward}個</b> 手に入る。用途は3つ。<br>
       ・ストアを引き直す（${CONFIG.rerollCost}個から。引き直すたびに+1、ステージが変わるとリセット）<br>
-      ・<b>そのまま爆弾として使う</b>（${CONFIG.bombCost}個・ターンを1消費して周囲を消す）<br>
+      ・<b>ラウンド終了時にコインへ変わる</b>（残った種1個＝${CONFIG.coinPerSeed}コイン）。コインで爆弾を買える<br>
       ・<b>一斉収穫</b>（${CONFIG.harvestBombCost}個・ターンを1消費して、選んだフルーツを盤面から全部収穫する）<br>
       ・<b>即発アイテムと交換する</b>（${CONFIG.instantItemCost}個・枠を消費しない。ストア画面の🎫から）<br>
       ステージが変わると持ち越さずリセットされる。
@@ -4014,7 +4196,13 @@ window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(()=>
 document.addEventListener('gesturestart', e => e.preventDefault());
 
 applySpeed();
-newGame();
+/* 保存データがあれば続きから始める。読めなければ新規で開始する。 */
+if(hasAutoSave()){
+  const r = autoLoad();
+  if(r.ok) startStage(); else newGame();
+} else {
+  newGame();
+}
 </script>
 </body>
 </html>
