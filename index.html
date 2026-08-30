@@ -228,6 +228,7 @@ body{
 .card.on{border-color:var(--lantern);background:linear-gradient(180deg,#FFF1D2,#FFE9C8)}
 .card .chk{margin-left:auto;color:var(--candy);font-size:16px;opacity:0}
 .card.on .chk{opacity:1}
+.card .price{margin-left:auto;align-self:center;font-size:12px;font-weight:800;white-space:nowrap}
 
 /* ---------- モーダル ---------- */
 #modal{position:fixed;inset:0;background:rgba(60,38,18,.55);backdrop-filter:blur(4px);z-index:50;
@@ -376,8 +377,13 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
    ゲーム内では ⚙ 設定の先頭に表示される。
    ========================================================================= */
-const VERSION = '0.75';
+const VERSION = '0.80';
 const CHANGELOG = [
+  ['0.80', '引き直しの料金をステージごとにリセットせず、ゲーム全体で積み上がるように変更（セーブにも保存）'],
+  ['0.79', 'アイテムをコインで買う方式に変更（コモン2／レア4／ハイレア7／にせもの3）。開始時に3コイン所持／収穫に失敗しても、残っていた種の半分がコインとして戻るように'],
+  ['0.78', '「何回目の挑戦で越えられるか」を基準にステージ目標を全面調整（S1〜S2は1回、S3で2回、S4〜S7で4〜6回、S8で8回、S9以降は10回前後）'],
+  ['0.77', '収穫倍率と連鎖装置が同じ効果になっていたのを解消。収穫倍率を「2連鎖以下のターンはスコア倍率×2」に作り直し、連鎖装置と対になる関係に／S2以降の目標を2倍・ターン数を2/3に'],
+  ['0.76', '種で買っていたものをすべてコイン建てに統一（引き直し・レア引き直し・即発アイテム・一斉収穫・持ち越し枠）。クリア時に種がコインへ変わる仕様と噛み合わず、引き直しなどが実質使えなくなっていたのを解消／種は「コインの元手」に専念する役割へ'],
   ['0.75', '持ち越し枠が買えなくなっていたのを修正（クリア時に種がコインへ変わるのに、購入は種建てのままだった）。枠の購入をコイン建てに変更／測量士の判定を3×3から2×2に変更して実際に発動するように'],
   ['0.74', 'たからもの「果樹園の地図」を削除（盤面が揃いやすくなりすぎて突出していたため）。既存のセーブに入っていても読み飛ばして続行できます'],
   ['0.73', 'マップのボタン表記が逆だったのを修正（クリア済みの農園が「最初からやり直す」に）／賭博師の帽子を+20%に、釣り合いをとって四つ葉+12%・太陽の欠片+8%/Lvへ調整'],
@@ -471,6 +477,10 @@ const CONFIG = {
   rerollCost:     1,     // リロールの種消費数
   roundSeeds:     3,     // ラウンド開始時に配られる種（ステージごとにリセット）
   bombPrice:      4,     // 爆弾1個をコインで買うときの値段
+  startCoins:     3,     // ゲーム開始時に持っているコイン
+  itemPrice:      {common:2, rare:4, epic:7},  // レアリティ別のアイテム価格
+  fakePrice:      3,     // にせもの系だけは別価格（強力なので少し高い）
+  failRefund:     0.5,   // 収穫に失敗したとき、そのとき持っていた種の何割がコインで戻るか
   coinPerSeed:    1,     // ラウンド終了時、残った種1個が何コインになるか
   harvestBombCost:5,     // 特定フルーツを一斉収穫するのに使うコイン
   treasureReroll: 5,     // たからものの引き直しに必要な種（1回ごとに +1）
@@ -623,6 +633,11 @@ function rarityOf(it){
 }
 function isRare(it){ return rarityOf(it) !== 'common'; }   // レア以上
 function isEpic(it){ return rarityOf(it) === 'epic'; }
+/* アイテム1つの値段。にせもの系だけは別枠で少し高くしてある。 */
+function priceOf(it){
+  if(it.fake) return CONFIG.fakePrice;
+  return CONFIG.itemPrice[rarityOf(it)] || 2;
+}
 
 /* ---------------- アイテム（§7） ----------------
    apply(c, s) : c = 集計コンテキスト / s = ゲーム状態
@@ -648,8 +663,8 @@ const ITEMS = [
 
   // --- 倍率系（正） ---
   {id:'x15',   n:'収穫倍率',     ic:'✳️', tag:'倍率',
-    d:'3連鎖以上に到達したターンの スコア倍率の上昇量 +0.5',
-    apply:c=>c.chain3+=0.5},
+    d:'連鎖しなかったターン（2連鎖以下）の スコア倍率 ×2',
+    apply:c=>{ c.lowChainMul = (c.lowChainMul || 1) * 2; }},
   {id:'x2',    n:'大収穫祭',     ic:'🎊', tag:'倍率',
     d:`はじめは ×${CONFIG.festivalStart}。5個以上の塊を消すたびに +${CONFIG.festivalStep} され、`
       + `最終的に ×${CONFIG.festivalCap} まで育つ。アイテム枠が1つ埋まったままになる（枠 -1）`,
@@ -1012,14 +1027,17 @@ function descOf(x){
 /* ステージ目標。S1〜S5はクリア率80%前後、S15前後で20%前後になるよう調整。
    S1〜S8が「国民の食糧難を解決する」本編、S9以降が国外へ広げるエンドコンテンツ。 */
 const STAGES = [
-  {name:'村はずれの空き地', w:8, h:8,  turns:9,  target:1200,   fruits:5},
-  {name:'朝もやの果樹園',   w:8, h:8,  turns:10, target:2200,   fruits:5},
-  {name:'石垣のいちご畑',   w:7, h:7,  turns:12, target:4000,   fruits:5},
-  {name:'風車のある丘',     w:8, h:8,  turns:15, target:6000,   fruits:5},
-  {name:'王立温室',         w:9, h:9,  turns:16, target:9000,   fruits:5},
-  {name:'痩せた岩の段々畑', w:6, h:6,  turns:16, target:13000,  fruits:5},
-  {name:'霧の大農園',       w:8, h:8,  turns:18, target:19000,  fruits:5},
-  {name:'国営中央農場',     w:10,h:10, turns:21, target:28000,  fruits:6}   // 6種目はここから
+  // 「何回目の挑戦で越えられるか」を基準に調整している。
+  // 目安：S1〜S2は1回、S3で2回、S4で4回、S5〜S7で6回、S8で8回、S9以降は10回。
+  // 壁は高いほうがよく、そのぶんギリギリ越えられる線を狙う。
+  {name:'村はずれの空き地', w:8, h:8,  turns:10, target:1000,   fruits:5},   // 1回
+  {name:'朝もやの果樹園',   w:8, h:8,  turns:9,  target:2600,   fruits:5},   // 1回
+  {name:'石垣のいちご畑',   w:7, h:7,  turns:9,  target:8000,   fruits:5},   // 2回
+  {name:'風車のある丘',     w:8, h:8,  turns:9,  target:32000,  fruits:5},   // 4回
+  {name:'王立温室',         w:9, h:9,  turns:11, target:120000, fruits:5},   // 6回
+  {name:'痩せた岩の段々畑', w:7, h:7,  turns:12, target:78000,  fruits:5},   // 6回
+  {name:'霧の大農園',       w:8, h:8,  turns:11, target:135000, fruits:5},   // 6回
+  {name:'国営中央農場',     w:10,h:10, turns:14, target:175000, fruits:6}    // 8回・6種目はここから
 ];
 /* S9以降は自動生成。国民の食糧難を解決したあと、諸国へ広げていく段。
    1段ごとに1.85倍。地力やたからものの成長を上回るペースにして、
@@ -1037,8 +1055,8 @@ function stageData(i){
   return {
     ...last,
     name: loop ? `${name} ${loop + 1}周目` : name,
-    turns: last.turns + Math.min(6, Math.floor(over / 2)),   // 少しずつターンも増やす
-    target: Math.round(last.target * Math.pow(1.85, over))
+    turns: last.turns + Math.min(4, Math.floor(over / 2)),   // 少しずつターンも増やす
+    target: Math.round(last.target * Math.pow(1.6, over))
   };
 }
 
@@ -1050,7 +1068,7 @@ const S = {
   seeds:0, items:[], treasures:[], slots:CONFIG.startSlots, lifetime:0, maxStage:0,
   baseMult:1, carriedMult:1, carryOver:[], fruitMark:{}, harvestBoost:1, discarded:0,
   carrySlots:0,        // 種で買い足した持ち越し枠の数（永続）
-  coins:0,             // ラウンド終了時に種から変換されるお金（永続）
+  coins:CONFIG.startCoins,   // 買い物に使うお金（永続）
   bombs:0,             // 買って持っている爆弾の数（永続）
   w:8, h:8, grid:[], fruitIds:[], stageCleared:0, counters:{},
   busy:false, sel:null, bombMode:false, uid:0, store:null, afterStore:null, storeRerolls:0,
@@ -1201,7 +1219,7 @@ function blankCtx(){
     seedAdd:0, seedMul:1, seedScore:0,
     chainAdd:0, sizeAdd:0, mults:[], negCount:0, invert:false, deceit:0,
     bananaRange:0, grapeBonus:0, perProc:0, chain3:0, typeCut:0,
-    squareMul:0, seedTileBonus:0, discardBonus:0, bigOnly:0, bigMul:1,
+    squareMul:0, seedTileBonus:0, discardBonus:0, bigOnly:0, bigMul:1, lowChainMul:1,
     spawnMul:{}, convert:[], topSpawn:0, convAdd:0, fakeBonus:0,
     goldCut:0, goldRange:0, goldMultAdd:0,
     silverCut:0, silverEatAdd:0, silverMultAdd:0,
@@ -2334,7 +2352,9 @@ async function resolve(manual, swapCells){
 
   if(seedGain){ S.seeds += seedGain; toast(`不思議な種 +${seedGain}`); }
 
-  const finalMult = bnMul(staticMult(c), 1 + dyn);
+  // 収穫倍率：連鎖が伸びなかったターンだけ効く（連鎖装置と役割を分ける）
+  const lowChain = (chain <= 2 && c.lowChainMul > 1) ? c.lowChainMul : 1;
+  const finalMult = bnMul(bnMul(staticMult(c), 1 + dyn), lowChain);
   const gained = finalScore(raw, finalMult, c);
   if(bnCompare(gained, 0) !== 0 || raw !== 0){
     S.harvest = bnAdd(S.harvest, gained);
@@ -2682,7 +2702,10 @@ function renderStore(discardMode){
   const cards = S.store.map((it,i) => {
     const own = S.items.find(x => x.id === it.id);
     const maxed = own && LV(own) >= CONFIG.itemMaxLv;
-    return `<button class="card ${it.neg?'neg':''} ${own?'on':''}" data-buy="${i}" ${maxed?'disabled style="opacity:.4"':''}>
+    const price = priceOf(it);
+    const poor = S.coins < price;                 // コインが足りないと買えない
+    const off = maxed || poor;
+    return `<button class="card ${it.neg?'neg':''} ${own?'on':''}" data-buy="${i}" ${off?'disabled style="opacity:.4"':''}>
        <span class="ic">${it.ic}</span>
        <span style="flex:1"><span class="t">${it.n}
          ${isRare(it) ? (r => `<span class="tag" style="border-color:${r.col};color:${r.col};font-weight:800">${r.mark}${r.n}</span>`)(RARITY[rarityOf(it)]) : ''}
@@ -2690,6 +2713,7 @@ function renderStore(discardMode){
          ${own ? `<span class="tag" style="border-color:var(--lantern);color:var(--lantern)">${
            maxed ? `Lv${LV(own)} 上限` : `Lv${LV(own)} → Lv${LV(own)+1}`}</span>` : ''}</span>
        <div class="d">${descOf(it)}${own && !maxed ? (n => `<br><b style="color:var(--lantern)">重ねると Lv${LV(own)+1} へ（枠は消費しない）${n ? '：' + n : ''}</b>`)(levelUpNote(own)) : ''}</div></span>
+       <span class="price" style="color:${poor ? 'var(--bad)' : 'var(--lantern)'}">🪙${price}</span>
      </button>`;
   }).join('');
 
@@ -2761,14 +2785,20 @@ function renderStore(discardMode){
   `, el => {
     el.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
       const it = S.store[+b.dataset.buy];
+      const price = priceOf(it);
+      if(S.coins < price){ toast('コインが足りない'); return; }
       const own = S.items.find(x => x.id === it.id);
       if(!own && S.items.length >= maxSlots){ S.pending = it; renderStore(true); return; }
+      S.coins -= price;
       const nl = giveItem(it);
       if(own) toast(`${it.n} が Lv${nl} になった`);
       finishStore();
     });
     el.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => {
+      const price = priceOf(S.pending);
+      if(S.coins < price){ toast('コインが足りない'); return; }
       S.items.splice(+b.dataset.drop, 1);
+      S.coins -= price;
       giveItem(S.pending); S.pending = null;
       finishStore();
     });
@@ -2776,7 +2806,7 @@ function renderStore(discardMode){
     if(act) act.onclick = () => {
       if(S.coins < rerollCost()) return;
       S.coins -= rerollCost();           // 残数は再描画で即座に反映される
-      S.storeRerolls++;                  // 次のリロールはさらに+1個必要になる（ステージごとにリセット）
+      S.storeRerolls++;                  // 引き直すほど高くなる（ゲーム全体で積み上がる）
       rollStore(); renderStore(); hud();
     };
     const rr = el.querySelector('[data-act="rareroll"]');
@@ -2850,7 +2880,6 @@ function startStage(skipIntro){
   S.turns = 0;
   S.stageCleared = 0;
   S.counters = {};
-  S.storeRerolls = 0;
   S.harvest = 0;
   S.baseMult = S.carriedMult;      // 継承の苗木で持ち越した基本倍率
   S.carriedMult = 1;
@@ -3218,12 +3247,18 @@ async function stageClear(){
 
 function stageFail(){
   S.busy = true;
+  // 失敗しても、持っていた種は半分がコインとして戻る（丸損にはしない）
+  const refund = Math.floor(S.seeds * CONFIG.failRefund);
+  if(refund > 0){ S.coins += refund; }
+  S.seeds = 0;
+  hud();
   sheet(`
     <h2>ターン切れ</h2>
     <div class="sub">${stageData(S.stage).name}</div>
     <div class="doc">
       収穫 <b>${fmtScore(S.harvest)}</b> / ${fmtScore(S.target)}。<br>
       目標に届かなかった。たからものは手元に残る。
+      ${refund > 0 ? `<br>残っていた種の半分が <b style="color:var(--lantern)">🪙${refund} コイン</b> になった（所持 🪙${S.coins}）` : ''}
     </div>
     <div class="row" style="margin-top:14px">
       <button class="btn primary" data-act="retry">このステージをやり直す</button>
@@ -3238,7 +3273,7 @@ function stageFail(){
 function newGame(){
   S.stage = 0; S.slots = CONFIG.startSlots; S.treasures = []; S.uid = 0;
   S.lifetime = 0; S.maxStage = 0; S.carrySlots = 0; S.fruitMark = {};
-  S.coins = 0; S.bombs = 0;
+  S.coins = CONFIG.startCoins; S.bombs = 0; S.storeRerolls = 0;
   S.items = []; S.carryOver = []; S.seeds = 0;
   clearAutoSave();                 // 最初からやり直すので、古い保存は消す
   startStage();
@@ -3346,7 +3381,7 @@ function saveText(){
     v:VERSION,
     stage:S.stage, maxStage:S.maxStage, slots:S.slots, seeds:S.seeds,
     lifetime:S.lifetime, spd:S.spd, carriedMult:S.carriedMult, carrySlots:S.carrySlots,
-    fruitMark:S.fruitMark, coins:S.coins, bombs:S.bombs,
+    fruitMark:S.fruitMark, coins:S.coins, bombs:S.bombs, storeRerolls:S.storeRerolls,
     items:S.items.map(i => [i.id, LV(i)]),
     treasures:S.treasures.map(t => [t.id, LV(t)])
   });
@@ -3398,6 +3433,7 @@ function loadText(txt){
   S.fruitMark = (o.fruitMark && typeof o.fruitMark === 'object') ? o.fruitMark : {};
   S.coins = Math.max(0, o.coins | 0);
   S.bombs = Math.max(0, o.bombs | 0);
+  S.storeRerolls = Math.max(0, o.storeRerolls | 0);
   S.carryOver = [];
   if(o.spd) { S.spd = +o.spd; applySpeed(); }
 
@@ -4169,7 +4205,7 @@ $('btnHelp').onclick = () => {
 
       <h3 class="sec">コイン 🪙</h3>
       種から変わったお金。ステージをまたいで貯まる。買えるものは次のとおり。<br>
-      ・ストアを引き直す（${CONFIG.rerollCost}から。引き直すたびに+1、ステージが変わるとリセット）<br>
+      ・ストアを引き直す（${CONFIG.rerollCost}から。引き直すたびに+1され、この先ずっと持ち越される）<br>
       ・${RARITY.rare.mark}レア以上だけを引き直す（上記＋${CONFIG.rareRerollCost}）<br>
       ・<b>即発アイテムと交換する</b>（${CONFIG.instantItemCost}・枠を消費しない。ストア画面の🎫から）<br>
       ・<b>一斉収穫</b>（${CONFIG.harvestBombCost}・ターンを1消費して、選んだフルーツを盤面から全部収穫する）<br>
