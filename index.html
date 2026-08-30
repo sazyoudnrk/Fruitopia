@@ -377,8 +377,12 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
    ゲーム内では ⚙ 設定の先頭に表示される。
    ========================================================================= */
-const VERSION = '0.80';
+const VERSION = '0.84';
 const CHANGELOG = [
+  ['0.84', '🔗の付く数を 1,1,2,2,3,3… に変更（最大3個まで）／連鎖の演出が速すぎたのを緩和。圧縮が始まるまでの猶予を6秒から14秒に延ばし、連鎖の切れ目にも間を置くように'],
+  ['0.83', '同じステージをやり直すとき、引き直しの値段が挑戦前に戻るように（失敗するほど高くなり、何度も挑む設計と噛み合っていなかった）。ステージを進んだ場合はこれまでどおり引き継がれます'],
+  ['0.82', 'たからものの引き直しもコイン建てに／区画整理をハイレアからコモンへ／ハイレア「畝の交差」を追加（斜め3つでも揃う）／アイテム取得画面からもその場で売れるように'],
+  ['0.81', 'アイテムを売れるように（買値の半額がコインで戻る）。重ねてレベルを上げたものは、そのぶん売値も上がる／枠が満杯のときの入れ替えも売却扱いになり、コインが戻るように'],
   ['0.80', '引き直しの料金をステージごとにリセットせず、ゲーム全体で積み上がるように変更（セーブにも保存）'],
   ['0.79', 'アイテムをコインで買う方式に変更（コモン2／レア4／ハイレア7／にせもの3）。開始時に3コイン所持／収穫に失敗しても、残っていた種の半分がコインとして戻るように'],
   ['0.78', '「何回目の挑戦で越えられるか」を基準にステージ目標を全面調整（S1〜S2は1回、S3で2回、S4〜S7で4〜6回、S8で8回、S9以降は10回前後）'],
@@ -481,9 +485,10 @@ const CONFIG = {
   itemPrice:      {common:2, rare:4, epic:7},  // レアリティ別のアイテム価格
   fakePrice:      3,     // にせもの系だけは別価格（強力なので少し高い）
   failRefund:     0.5,   // 収穫に失敗したとき、そのとき持っていた種の何割がコインで戻るか
+  sellRate:       0.5,   // アイテムを売るときに戻るコインの割合（買値に対して）
   coinPerSeed:    1,     // ラウンド終了時、残った種1個が何コインになるか
   harvestBombCost:5,     // 特定フルーツを一斉収穫するのに使うコイン
-  treasureReroll: 5,     // たからものの引き直しに必要な種（1回ごとに +1）
+  treasureReroll: 5,     // たからものの引き直しに必要なコイン（1回ごとに +1）
   skipSeedReward: 2,     // 取らずに次へ を選んだときに得られるコイン     // ストアで「取らずに次へ」を選んだときに貰える種
   instantItemCost:3,     // 枠を取らない即発アイテム(once)をコインと交換するコスト
   turnBonusRatio: 0.1,   // 残りターンボーナス＝ そのステージの収穫 × この値 × 残りターン数
@@ -512,6 +517,7 @@ const CONFIG = {
   festivalStart:  2.5,   // 大収穫祭：所持した瞬間の倍率
   festivalStep:   0.5,   // 5個以上の塊を消すたびに増える量
   festivalCap:    10,    // 育ちきったときの上限
+  markMax:        3,     // 1回の連鎖で付く🔗の上限
   markScoreGain:  0.1,   // 🔗を1つ消すと、そのフルーツの固有スコアが永続的にいくつ増えるか
   markStep:       0.05,  // 連鎖が起きるたびに固有倍率へ加算される量（線形）
   maxSlots:       10,    // 最大アイテム枠
@@ -614,9 +620,9 @@ const EPIC_IDS = new Set([
   'frostvault',      // 序盤×0.5／終盤×4に化ける
   'debtnote',        // 抱えるほど反転して大きくなる
   'bigcatch',        // 大きな塊しか収穫できない代わりに強い
-  'survey',          // 大収穫の伸びが2倍
   'seedfoam',        // 種を抱えるほど複利で伸びる
-  'monopoly'         // 盤面を主軸フルーツに寄せる
+  'monopoly',        // 盤面を主軸フルーツに寄せる
+  'diagonal'         // 斜めも揃うようになり、盤面の可能性が一気に広がる
 ]);
 // レア：どんなビルドでも腐りにくい汎用強化。
 const RARE_IDS = new Set([
@@ -637,6 +643,11 @@ function isEpic(it){ return rarityOf(it) === 'epic'; }
 function priceOf(it){
   if(it.fake) return CONFIG.fakePrice;
   return CONFIG.itemPrice[rarityOf(it)] || 2;
+}
+/* 売値。買値の半分（端数切り捨て、最低1）。
+   重ねてレベルを上げたものは、そのぶん多く払っているので売値も上がる。 */
+function sellPriceOf(it){
+  return Math.max(1, Math.floor(priceOf(it) * LV(it) * CONFIG.sellRate));
 }
 
 /* ---------------- アイテム（§7） ----------------
@@ -692,6 +703,9 @@ const ITEMS = [
   {id:'balance',n:'均衡の秤',    ic:'☯️', tag:'シナジー', d:'負倍率アイテムを2個以上持つと スコア倍率 ×2.5',
     apply:c=>{ if(c.negCount>=2) c.mults.push(2.5); }, late:true},
   // ---- 大収穫（3×3）を軸にするアイテム ----
+  {id:'diagonal',n:'畝の交差',    ic:'✳️', tag:'特殊', unique:true,
+    d:'斜めに3つ並んでも揃ったことになる（縦横に加えて斜めも見る）',
+    apply:c=>{ c.diagonal = true; }},
   {id:'survey', n:'区画整理',     ic:'🏗️', tag:'特殊', unique:true,
     d:'3×3の大収穫で上がる量が2倍になる',
     apply:c=>c.squareMul+=1},
@@ -1068,6 +1082,8 @@ const S = {
   seeds:0, items:[], treasures:[], slots:CONFIG.startSlots, lifetime:0, maxStage:0,
   baseMult:1, carriedMult:1, carryOver:[], fruitMark:{}, harvestBoost:1, discarded:0,
   carrySlots:0,        // 種で買い足した持ち越し枠の数（永続）
+  rerollBase:0,        // このステージに入った時点の引き直し回数（リトライで戻す基準）
+  rerollStage:-1,      // rerollBase を記録したときのステージ番号
   coins:CONFIG.startCoins,   // 買い物に使うお金（永続）
   bombs:0,             // 買って持っている爆弾の数（永続）
   w:8, h:8, grid:[], fruitIds:[], stageCleared:0, counters:{},
@@ -1082,11 +1098,11 @@ const T = ms => Math.round(ms * S.spd);
    巨大な連鎖が続くケース）で実時間が数十秒〜数分に膨れ上がるのを防ぐ。 */
 function paced(ms){
   const el = S._resolveStart ? Date.now() - S._resolveStart : 0;
-  // どれだけ長引いても、消える瞬間は必ず何かしら見せる（0msにはしない）。
-  // 「何が起きたか分かる最低限の速さ」を保ったまま、それ以上は圧縮する。
-  if(el > 12000) return Math.min(ms, 55);
-  if(el > 6000)  return Math.min(ms, 90);
-  return ms;                              // 最初の6秒は通常どおりの演出
+  // 長い連鎖ほど見どころなので、圧縮を始めるまでの猶予を長めに取り、
+  // 圧縮後もある程度は見える速さを保つ（速すぎて何が起きたか分からなくなるため）。
+  if(el > 25000) return Math.min(ms, 110);
+  if(el > 14000) return Math.min(ms, 180);
+  return ms;                              // 最初の14秒は通常どおりの演出
 }
 function applySpeed(){ document.documentElement.style.setProperty('--sp', S.spd); }
 const $ = id => document.getElementById(id);
@@ -1220,6 +1236,7 @@ function blankCtx(){
     chainAdd:0, sizeAdd:0, mults:[], negCount:0, invert:false, deceit:0,
     bananaRange:0, grapeBonus:0, perProc:0, chain3:0, typeCut:0,
     squareMul:0, seedTileBonus:0, discardBonus:0, bigOnly:0, bigMul:1, lowChainMul:1,
+    diagonal:false,
     spawnMul:{}, convert:[], topSpawn:0, convAdd:0, fakeBonus:0,
     goldCut:0, goldRange:0, goldMultAdd:0,
     silverCut:0, silverEatAdd:0, silverMultAdd:0,
@@ -1574,6 +1591,35 @@ function findGroups(pairMatch){
       else { if(run>=3) for(let k=y-run;k<y;k++) mark[k*w+x] = 1; run = 1; }
     }
   }
+  // 「畝の交差」を持っていると、斜めの3つ並びも揃ったことになる。
+  // 左上→右下と右上→左下の2方向を、縦横と同じ要領で走査する。
+  if(S.items.some(x => x.id === 'diagonal')){
+    const scanDiag = (sx, sy) => {
+      // (sx,sy) 方向へ進む対角線をすべてたどる
+      const starts = [];
+      for(let x=0;x<w;x++) starts.push([x, sy > 0 ? 0 : h-1]);
+      for(let y=0;y<h;y++) starts.push([sx > 0 ? 0 : w-1, y]);
+      for(const [bx,by] of starts){
+        const line = [];
+        for(let x=bx, y=by; x>=0 && x<w && y>=0 && y<h; x+=sx, y+=sy) line.push(y*w+x);
+        let run = 1;
+        for(let k=1;k<=line.length;k++){
+          const a = k<line.length ? grid[line[k]] : null, b = grid[line[k-1]];
+          if(a && b && a.f===b.f) run++;
+          else { if(run>=3) for(let m=k-run;m<k;m++) mark[line[m]] = 1; run = 1; }
+        }
+      }
+    };
+    scanDiag(1, 1);    // ↘
+    scanDiag(1, -1);   // ↗
+  }
+
+  // 斜めマッチが有効なときは、連結判定でも斜めを隣とみなす。
+  // これを揃えないと、斜めに並んだ3つが1つの塊にならずバラバラに数えられる。
+  const NEI = S.items.some(x => x.id === 'diagonal')
+    ? [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
+    : [[1,0],[-1,0],[0,1],[0,-1]];
+
   const seen = new Uint8Array(w*h), out = [];
   for(let i=0;i<w*h;i++){
     if(!mark[i] || seen[i]) continue;
@@ -1581,7 +1627,7 @@ function findGroups(pairMatch){
     while(st.length){
       const c = st.pop(); comp.push(c);
       const cx = c%w, cy = (c/w)|0;
-      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+      NEI.forEach(([dx,dy])=>{
         const nx = cx+dx, ny = cy+dy;
         if(nx<0||ny<0||nx>=w||ny>=h) return;
         const ni = ny*w+nx;
@@ -1930,8 +1976,10 @@ function growMarks(){
 }
 function markCount(chain){
   if(chain < CONFIG.markChainStart) return 0;
-  // 2の累乗だと10連鎖で128個も付いて盤面が埋まってしまうため、直線的に増やす。
-  return chain - CONFIG.markChainStart + 1;            // 3連鎖:1 / 4:2 / 5:3 / 6:4
+  // 2連鎖ぶんで1つずつ増え、上限は markMax。
+  // 3,4連鎖:1個 / 5,6連鎖:2個 / 7連鎖以降:3個
+  const n = Math.floor((chain - CONFIG.markChainStart) / 2) + 1;
+  return Math.min(CONFIG.markMax, n);
 }
 function grantMarks(n){
   const pool = [];
@@ -2346,6 +2394,8 @@ async function resolve(manual, swapCells){
       sync(false);
       await sleep(paced(T(320)));
     }
+    // 連鎖が続くときは、次の段へ移る前に少し間を置いて「繋がった」ことを見せる
+    if(chain > 1) await sleep(paced(T(260)));
     await gravity();
     raw += await runTriggers(c, chainMul);
   }
@@ -2720,17 +2770,21 @@ function renderStore(discardMode){
   const dropList = S.items.map((it,i) =>
     `<button class="card ${it.neg?'neg':''}" data-drop="${i}">
        <span class="ic">${it.ic}</span>
-       <span style="flex:1"><span class="t">${it.n}</span><div class="d">${descOf(it)}</div></span>
+       <span style="flex:1"><span class="t">${it.n}${LV(it) > 1 ? ` Lv${LV(it)}` : ''}</span>
+         <div class="d">${descOf(it)}</div></span>
+       <span class="price" style="color:var(--lantern)">+🪙${sellPriceOf(it)}</span>
      </button>`).join('');
 
   // 現在のビルドを、リロール画面から離れずに確認できる一覧
+  // ストアからでもその場で売れるようにする（枠を空けて別のものを買える）
   const ownList = S.items.length
-    ? S.items.map(it => `<div class="ownrow ${it.neg?'neg':''}">
+    ? S.items.map((it,i) => `<button class="ownrow ${it.neg?'neg':''}" data-sell="${i}"
+        style="width:100%;text-align:left;cursor:pointer">
         <span class="ic">${it.ic}</span>
-        <span class="t">${it.n}</span>
+        <span class="t">${it.n}${LV(it) > 1 ? ` Lv${LV(it)}` : ''}</span>
         <span class="d">${descOf(it)}</span>
-        ${it.track ? `<span class="lv">${it.reset ? cnt(it.track) : 'Lv'+lv(it)}</span>` : ''}
-      </div>`).join('')
+        <span class="lv" style="color:var(--lantern)">売 +🪙${sellPriceOf(it)}</span>
+      </button>`).join('')
     : `<div class="ownrow"><span class="d" style="color:var(--dim)">まだアイテムを持っていません</span></div>`;
 
   const treList = S.treasures.length
@@ -2751,7 +2805,7 @@ function renderStore(discardMode){
       ? `${stageData(S.stage).name}　まずアイテムを1つ選ぶ（種${S.seeds}個で引き直せる）`
       : `${S.turns >= storeLastTurn() ? 'これが最後のアイテム ・ ' : `次の仕入れまで ${CONFIG.storeInterval}ターン ・ `}残り ${S.turnsMax - S.turns} ターン ・ 収穫 ${fmtScore(S.harvest)} / ${fmtScore(S.target)} ・ 倍率 ${fmtMult(staticMult(c))}`}</div>
 
-    ${discardMode ? `<div class="sub" style="color:var(--bad)">アイテム枠が満杯です。手放すアイテムを選んでください。</div>${dropList}
+    ${discardMode ? `<div class="sub" style="color:var(--bad)">アイテム枠が満杯です。売るアイテムを選んでください（売値はコインで戻ります）。</div>${dropList}
       <div class="row"><button class="btn ghost" data-act="cancelDrop">やめる</button></div>`
     : `${cards}
 
@@ -2796,11 +2850,46 @@ function renderStore(discardMode){
     });
     el.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => {
       const price = priceOf(S.pending);
-      if(S.coins < price){ toast('コインが足りない'); return; }
+      const sold = S.items[+b.dataset.drop];
+      const gain = sellPriceOf(sold);
+      // 売ったぶんのコインを足してから、新しいアイテムの代金を払う
+      if(S.coins + gain < price){ toast('コインが足りない'); return; }
       S.items.splice(+b.dataset.drop, 1);
+      S.coins += gain;
+      S.discarded++;
       S.coins -= price;
       giveItem(S.pending); S.pending = null;
+      toast(`${sold.n} を売って 🪙${gain} 得た`);
       finishStore();
+    });
+    el.querySelectorAll('[data-sell]').forEach(b => b.onclick = () => {
+      const it = S.items[+b.dataset.sell];
+      if(!it) return;
+      const gain = sellPriceOf(it);
+      sheet(`
+        <h2>${it.ic} ${it.n} を売る</h2>
+        <div class="sub">🪙${gain} コインになり、枠が1つ空きます。この操作は取り消せません。</div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn danger" data-act="y">🪙${gain} で売る</button>
+          <button class="btn ghost" data-act="n">やめる</button>
+        </div>`,
+        e2 => {
+          e2.querySelector('[data-act="y"]').onclick = () => {
+            const at = S.items.indexOf(it);
+            if(at >= 0){
+              S.items.splice(at, 1);
+              S.coins += gain;
+              S.discarded++;
+              if(S.items.some(x => x.id === 'compost')){
+                const base = FRUITS[0].base + ctx().baseAdd;
+                S.compostBonus += Math.max(1, Math.round(base * 0.05 * 10) / 10);
+              }
+              toast(`${it.n} を売って 🪙${gain} 得た`);
+            }
+            hud(); renderStore();
+          };
+          e2.querySelector('[data-act="n"]').onclick = () => renderStore();
+        }, () => renderStore());
     });
     const act = el.querySelector('[data-act="reroll"]');
     if(act) act.onclick = () => {
@@ -2873,6 +2962,14 @@ function openInstantShop(back){
    ステージ進行
    ========================================================================= */
 function startStage(skipIntro){
+  // 引き直しの値段は挑戦をまたいで上がり続けるが、同じステージをやり直すときは
+  // 挑戦前の値段に戻す。失敗するほど引き直しが高くなると、何度も挑む設計と噛み合わないため。
+  if(S.rerollStage !== S.stage){
+    S.rerollStage = S.stage;
+    S.rerollBase = S.storeRerolls;
+  } else {
+    S.storeRerolls = S.rerollBase;
+  }
   autoSave();                      // このステージに入った時点の状態を保存する
   const st = stageData(S.stage);
   S.w = st.w; S.h = st.h;
@@ -3081,14 +3178,14 @@ async function stageClear(){
         枠が満杯です。同じたからものなら自動で強化され、違うものなら入れ替えか置いていくかを選べます。</div>` : ''}
       ${offer.length ? `
         <div class="seedbar">
-          <span class="lbl">🌱 不思議な種</span>
-          <span class="num">×${S.seeds}</span>
+          <span class="lbl">🪙 コイン</span>
+          <span class="num">×${S.coins}</span>
           <span class="cost">引き直しに ×${rerollCost()}</span>
         </div>
         <div class="row"><button class="btn" data-act="reroll"
-          ${S.seeds >= rerollCost() ? '' : 'disabled'}>🌱 たからものを引き直す</button></div>
+          ${S.coins >= rerollCost() ? '' : 'disabled'}>🪙 たからものを引き直す（${rerollCost()}）</button></div>
         <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
-          引き直すたびに必要な種が1つ増えます。残った種は次の農園には持ち越されません。
+          引き直すたびに必要なコインが1つ増えます。
         </div>` : ''}
       ${S.treasures.length ? `<h3 class="sec">いま持っているたからもの</h3>
         <div class="own">${S.treasures.map(t => `<div class="ownrow tre">
@@ -3274,6 +3371,7 @@ function newGame(){
   S.stage = 0; S.slots = CONFIG.startSlots; S.treasures = []; S.uid = 0;
   S.lifetime = 0; S.maxStage = 0; S.carrySlots = 0; S.fruitMark = {};
   S.coins = CONFIG.startCoins; S.bombs = 0; S.storeRerolls = 0;
+  S.rerollBase = 0; S.rerollStage = -1;
   S.items = []; S.carryOver = []; S.seeds = 0;
   clearAutoSave();                 // 最初からやり直すので、古い保存は消す
   startStage();
@@ -3382,6 +3480,7 @@ function saveText(){
     stage:S.stage, maxStage:S.maxStage, slots:S.slots, seeds:S.seeds,
     lifetime:S.lifetime, spd:S.spd, carriedMult:S.carriedMult, carrySlots:S.carrySlots,
     fruitMark:S.fruitMark, coins:S.coins, bombs:S.bombs, storeRerolls:S.storeRerolls,
+    rerollBase:S.rerollBase, rerollStage:S.rerollStage,
     items:S.items.map(i => [i.id, LV(i)]),
     treasures:S.treasures.map(t => [t.id, LV(t)])
   });
@@ -3434,6 +3533,8 @@ function loadText(txt){
   S.coins = Math.max(0, o.coins | 0);
   S.bombs = Math.max(0, o.bombs | 0);
   S.storeRerolls = Math.max(0, o.storeRerolls | 0);
+  S.rerollBase = Math.max(0, o.rerollBase | 0);
+  S.rerollStage = (o.rerollStage === undefined) ? -1 : (o.rerollStage | 0);
   S.carryOver = [];
   if(o.spd) { S.spd = +o.spd; applySpeed(); }
 
@@ -4011,25 +4112,29 @@ document.addEventListener('click', e => {
       ${it.reset ? `（あと ${it.every - cnt(it.track) % it.every}${it.unit || ''}で発動）`
                  : `→ 現在 Lv${lv(it)}`}</div>` : ''}
     <div class="row" style="margin-top:14px">
-      ${kind === 'item' ? `<button class="btn ghost" data-act="drop" style="color:var(--bad)">🗑️ 手放す</button>` : ''}
+      ${kind === 'item' ? `<button class="btn ghost" data-act="drop" style="color:var(--lantern)">🪙 売る（+${sellPriceOf(it)}）</button>` : ''}
       <button class="btn primary" data-act="c">閉じる</button>
     </div>`,
     el => {
       el.querySelector('[data-act="c"]').onclick = closeSheet;
       const dr = el.querySelector('[data-act="drop"]');
       if(dr) dr.onclick = () => sheet(`
-        <h2>${it.ic} ${it.n} を手放す</h2>
-        <div class="sub">枠が空きます。この操作は取り消せません。</div>
+        <h2>${it.ic} ${it.n} を売る</h2>
+        <div class="sub">🪙${sellPriceOf(it)} コインになり、枠が1つ空きます。この操作は取り消せません。
+          ${LV(it) > 1 ? `<br>Lv${LV(it)} まで重ねたぶんも売値に含まれます。` : ''}</div>
         <div class="row" style="margin-top:12px">
-          <button class="btn danger" data-act="yes">手放す</button>
+          <button class="btn danger" data-act="yes">🪙${sellPriceOf(it)} で売る</button>
           <button class="btn ghost" data-act="no">やめる</button>
         </div>`,
         e2 => {
           e2.querySelector('[data-act="yes"]').onclick = () => {
             const idx = S.items.indexOf(it);
             if(idx >= 0){
+              const gain = sellPriceOf(it);
               S.items.splice(idx, 1);
+              S.coins += gain;
               S.discarded++;
+              toast(`${it.n} を売って 🪙${gain} 得た`);
               // 堆肥箱：手放した時点の基礎スコアの5%を、以後ずっと上乗せする
               if(S.items.some(x => x.id === 'compost')){
                 const base = FRUITS[0].base + ctx().baseAdd;
@@ -4145,7 +4250,7 @@ $('btnHelp').onclick = () => {
       <ul>${fx}</ul>
       <h3 class="sec">連鎖のマーク 🔗</h3>
       1ターンのうちに ${CONFIG.markChainStart} 連鎖に達すると、盤面のフルーツに 🔗 が付く。
-      付く数は連鎖が1段深まるごとに1つずつ増える（${[3,4,5,6].map(n=>n+'連鎖で'+markCount(n)+'個').join('、')}）。<br>
+      付く数は2連鎖ぶんで1つずつ増え、最大${CONFIG.markMax}個まで（${[3,5,7].map(n=>n+'連鎖で'+markCount(n)+'個').join('、')}）。<br>
       🔗 を消すと、付いていたフルーツの<b>固有スコアが永続的に +${CONFIG.markScoreGain}</b> される。
       りんごに付いた 🔗 を消せば、りんごが以後ずっと少しだけ強くなる。<br>
       ステージをまたいでも消えず、遊ぶほど積み上がっていく数値。
