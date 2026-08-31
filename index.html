@@ -377,8 +377,10 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
    ゲーム内では ⚙ 設定の先頭に表示される。
    ========================================================================= */
-const VERSION = '0.84';
+const VERSION = '0.86';
 const CHANGELOG = [
+  ['0.86', '即発アイテムの画面から爆弾も買えるように（これまではマップの道具屋のみ）。同画面が種建ての表示のまま残っていたのもコイン表示に修正／S3の目標を6000に'],
+  ['0.85', '金・銀が、手でマッチさせていないのに連鎖中に勝手に発動することがあったのを修正。金は元のフルーツの種類を保持しているため、同じフルーツが3つ並ぶと通常マッチとして巻き込まれていた'],
   ['0.84', '🔗の付く数を 1,1,2,2,3,3… に変更（最大3個まで）／連鎖の演出が速すぎたのを緩和。圧縮が始まるまでの猶予を6秒から14秒に延ばし、連鎖の切れ目にも間を置くように'],
   ['0.83', '同じステージをやり直すとき、引き直しの値段が挑戦前に戻るように（失敗するほど高くなり、何度も挑む設計と噛み合っていなかった）。ステージを進んだ場合はこれまでどおり引き継がれます'],
   ['0.82', 'たからものの引き直しもコイン建てに／区画整理をハイレアからコモンへ／ハイレア「畝の交差」を追加（斜め3つでも揃う）／アイテム取得画面からもその場で売れるように'],
@@ -545,6 +547,7 @@ const CONFIG = {
   rainbowThreshold:6,    // 虹色フルーツが生まれる同時消し数
   blackChance:    0.0015,// 黒いフルーツが湧く確率（1マスあたり・ごく低確率）
   blackMult:      5,     // 黒が消したフルーツのスコア倍率
+  specialManualOnly:true,  // 金・銀も、プレイヤーのマッチ以外では起爆しない
   blackManualOnly:true,  // 黒はプレイヤー自身のマッチでしか発動しない（他の効果では破壊もされない）
   rainbowConvert: 10,    // 虹色が同じ種類に塗り替えるマス数
   rainbowMult:    3,     // 虹色が消したフルーツのスコア倍率
@@ -1046,7 +1049,7 @@ const STAGES = [
   // 壁は高いほうがよく、そのぶんギリギリ越えられる線を狙う。
   {name:'村はずれの空き地', w:8, h:8,  turns:10, target:1000,   fruits:5},   // 1回
   {name:'朝もやの果樹園',   w:8, h:8,  turns:9,  target:2600,   fruits:5},   // 1回
-  {name:'石垣のいちご畑',   w:7, h:7,  turns:9,  target:8000,   fruits:5},   // 2回
+  {name:'石垣のいちご畑',   w:7, h:7,  turns:9,  target:6000,   fruits:5},   // 2回
   {name:'風車のある丘',     w:8, h:8,  turns:9,  target:32000,  fruits:5},   // 4回
   {name:'王立温室',         w:9, h:9,  turns:11, target:120000, fruits:5},   // 6回
   {name:'痩せた岩の段々畑', w:7, h:7,  turns:12, target:78000,  fruits:5},   // 6回
@@ -2295,6 +2298,25 @@ async function resolve(manual, swapCells){
       }
     }
 
+    // 金・銀は元のフルーツの種類を持ったままなので、同じフルーツが3つ並ぶと
+    // 通常マッチとして巻き込まれてしまう。金どうしは同じフルーツから生まれることが
+    // 多く、連鎖中に同種が1つ落ちてくるだけで勝手に発動していた。
+    // プレイヤーのスワップに関係しない自動的な巻き込みでは起爆させず、盤面に残す。
+    if(CONFIG.specialManualOnly){
+      for(const i of [...all]){
+        const cell = S.grid[i];
+        if(!cell || (cell.sp !== 'gold' && cell.sp !== 'silver')) continue;
+        // その金・銀が含まれるグループすべてを見る。金どうしの2個ペアで
+        // 成立したグループは、スワップから生まれた正当なものなので許可する。
+        const mine = groups.filter(g => g.includes(i));
+        const ok = manual && chain === 1 && swapCells && mine.some(g =>
+          g.some(j => swapCells.includes(j)) ||          // スワップしたマスを含む
+          g.every(j => S.grid[j] && S.grid[j].sp === cell.sp)  // 金だけ／銀だけのペア
+        );
+        if(!ok) all.delete(i);
+      }
+    }
+
     // 3×3の正方形がそろうと「大収穫」。盤面全体の基礎スコア倍率が上がり、
     // その効果はステージが終わるまで残り続ける。
     //   ・1ターンに1度だけ（連鎖のたびに発動させない）
@@ -2933,16 +2955,25 @@ function openInstantShop(back){
     <h2>即発アイテム</h2>
     <div class="sub">枠を消費しない代わりに、コインと交換する。取った瞬間だけ効果を発揮する。</div>
     <div class="seedbar">
-      <span class="lbl">🌱 不思議な種</span>
-      <span class="num">×${S.seeds}</span>
-      <span class="cost">1個 ×${CONFIG.instantItemCost}</span>
+      <span class="lbl">🪙 コイン</span>
+      <span class="num">×${S.coins}</span>
+      <span class="cost">💣 爆弾 ×${S.bombs}</span>
     </div>
     ${instants.map(it => `
       <button class="card" data-buy="${it.id}" ${S.coins < CONFIG.instantItemCost ? 'disabled style="opacity:.4"' : ''}>
         <span class="ic">${it.ic}</span>
         <span style="flex:1"><span class="t">${it.n}</span><div class="d">${descOf(it)}</div></span>
-        <span class="chk" style="font-size:11px;color:var(--lantern)">🪙${CONFIG.instantItemCost}</span>
+        <span class="price" style="color:${S.coins < CONFIG.instantItemCost ? 'var(--bad)' : 'var(--lantern)'}">🪙${CONFIG.instantItemCost}</span>
       </button>`).join('')}
+
+    <h3 class="sec">道具</h3>
+    <button class="card" data-act="buybomb" ${S.coins < CONFIG.bombPrice ? 'disabled style="opacity:.4"' : ''}>
+      <span class="ic">💣</span>
+      <span style="flex:1"><span class="t">爆弾<span class="tag">所持 ${S.bombs}</span></span>
+        <div class="d">盤面をタップして周囲を消す。ターンを1消費する。買っておけばいつでも使える</div></span>
+      <span class="price" style="color:${S.coins < CONFIG.bombPrice ? 'var(--bad)' : 'var(--lantern)'}">🪙${CONFIG.bombPrice}</span>
+    </button>
+
     <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="c">戻る</button></div>
   `, el => {
     el.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
@@ -2953,6 +2984,15 @@ function openInstantShop(back){
       hud();
       draw();
     });
+    const bb = el.querySelector('[data-act="buybomb"]');
+    if(bb) bb.onclick = () => {
+      if(S.coins < CONFIG.bombPrice) return;
+      S.coins -= CONFIG.bombPrice;
+      S.bombs++;
+      toast(`爆弾を買った（所持 ${S.bombs}）`);
+      hud();
+      draw();
+    };
     el.querySelector('[data-act="c"]').onclick = done;
   }, done);
   draw();
