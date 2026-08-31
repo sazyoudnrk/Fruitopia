@@ -377,8 +377,11 @@ h3.sec{font-size:10px;letter-spacing:.18em;color:var(--dim);margin:14px 0 6px;fo
    更新するたびに VERSION の数字を上げ、CHANGELOG の先頭に1行足すこと。
    ゲーム内では ⚙ 設定の先頭に表示される。
    ========================================================================= */
-const VERSION = '0.86';
+const VERSION = '0.89';
 const CHANGELOG = [
+  ['0.89', '🪙が付いたフルーツが1%で出るように（消すとコインが手に入る）。支援アイテム2種を追加（⛏️鉱脈さがし＝出現率2倍／👛両替袋＝獲得コイン+2）／連鎖の演出を約2割短縮'],
+  ['0.88', 'クリアできずにやり直すと、前のステージから持ち越したアイテムが消えていたのを修正（入場時に持ち越しリストを空にしていたため）／堆肥箱で上がった基礎スコアを永続化（ステージをまたいで残り、セーブにも保存）／S4の目標を20000へ下げ、S5以降も同じ割合で引き下げ'],
+  ['0.87', 'マップの道具屋を削除（爆弾は即発アイテムの画面で買えます）／測量士が実質発動していなかったのを修正。2×2の正方形は実プレイでほぼ揃わず発動率0%だったため、「4個以上の塊で+60、曲がった形ならその倍」に変更し、発動したことが画面に出るように'],
   ['0.86', '即発アイテムの画面から爆弾も買えるように（これまではマップの道具屋のみ）。同画面が種建ての表示のまま残っていたのもコイン表示に修正／S3の目標を6000に'],
   ['0.85', '金・銀が、手でマッチさせていないのに連鎖中に勝手に発動することがあったのを修正。金は元のフルーツの種類を保持しているため、同じフルーツが3つ並ぶと通常マッチとして巻き込まれていた'],
   ['0.84', '🔗の付く数を 1,1,2,2,3,3… に変更（最大3個まで）／連鎖の演出が速すぎたのを緩和。圧縮が始まるまでの猶予を6秒から14秒に延ばし、連鎖の切れ目にも間を置くように'],
@@ -503,6 +506,8 @@ const CONFIG = {
   bonusChance:    0.03,  // 即発アイテムが有効なときの、特別なフルーツの出現率
   turnFruitGain:  1,     // 時のフルーツを消したときに増える制限ターン
   multFruitGain:  0.1,   // 実りのフルーツを消したときに増える基本倍率
+  coinFruitChance:0.01,  // コインのフルーツが出る確率（常時）
+  coinFruitGain:  1,     // コインのフルーツを消したときに得られるコイン
   carryItems:     1,     // 次のステージへ持ち越せるアイテム数（基本値・種で増やせる）
   carrySlotCosts: [5, 25, 125],  // 持ち越し枠を1つ増やすのに必要なコイン（買うたびに次の値へ）
   rarityWeight: {common:6, rare:3, epic:1},  // ストアに並ぶ重み（コモン6：レア3：ハイレア1）
@@ -633,7 +638,7 @@ const RARE_IDS = new Set([
   'chainm','sunfoc','clover','gamble','igniter','chainbox','ledger','longr',
   'compoundchain','sower','proctally','turntally','silvernursery',
   'pray','seedeat','seedthief',
-  'burnfield','lastcall','compost','surveyor'
+  'burnfield','lastcall','compost','surveyor','coinpurse'
 ]);
 function rarityOf(it){
   if(EPIC_IDS.has(it.id)) return 'epic';
@@ -713,17 +718,25 @@ const ITEMS = [
     d:'3×3の大収穫で上がる量が2倍になる',
     apply:c=>c.squareMul+=1},
   {id:'surveyor',n:'測量士',      ic:'📐', tag:'スコア',
-    d:'塊のなかに2×2の正方形が含まれていたら追加スコア +80',
+    d:'4個以上の塊で消すと追加スコア +60。L字など曲がった形ならその倍',
     apply:()=>{}},                   // 実処理は resolve 側（正方形判定が必要なため）
 
   // ---- 🌱の印を活かすアイテム ----
+  // ---- コインのフルーツを支援するもの ----
+  {id:'coinvein',n:'鉱脈さがし', ic:'⛏️', tag:'確率',
+    d:`🪙が付いたフルーツの出現率 +${Math.round(CONFIG.coinFruitChance*100)}%（元の2倍）`,
+    apply:c=>c.coinFruitAdd += CONFIG.coinFruitChance},
+  {id:'coinpurse',n:'両替袋',     ic:'👛', tag:'確率',
+    d:'🪙が付いたフルーツから得られるコイン +2',
+    apply:c=>c.coinFruitBonus += 2},
+
   {id:'seedthief',n:'種泥棒',     ic:'🐦', tag:'確率',
     d:'🌱が付いたフルーツを消すと、種が1個多く手に入る',
     apply:c=>c.seedTileBonus+=1},
 
   // ---- アイテムを手放すことが得になるアイテム ----
   {id:'compost',n:'堆肥箱',       ic:'♻️', tag:'シナジー',
-    d:'アイテムを手放すたび、そのときの基礎スコアの5%が上乗せされる（そのステージのあいだ持続）',
+    d:'アイテムを売るたび、そのときの基礎スコアの5%が永続的に上乗せされる',
     apply:(c,s)=>c.baseAdd+=s.compostBonus||0},
   {id:'burnfield',n:'焼き畑',     ic:'🔥', tag:'倍率',
     d:'所持アイテムが3個以下のとき スコア倍率 ×2',
@@ -1050,11 +1063,11 @@ const STAGES = [
   {name:'村はずれの空き地', w:8, h:8,  turns:10, target:1000,   fruits:5},   // 1回
   {name:'朝もやの果樹園',   w:8, h:8,  turns:9,  target:2600,   fruits:5},   // 1回
   {name:'石垣のいちご畑',   w:7, h:7,  turns:9,  target:6000,   fruits:5},   // 2回
-  {name:'風車のある丘',     w:8, h:8,  turns:9,  target:32000,  fruits:5},   // 4回
-  {name:'王立温室',         w:9, h:9,  turns:11, target:120000, fruits:5},   // 6回
-  {name:'痩せた岩の段々畑', w:7, h:7,  turns:12, target:78000,  fruits:5},   // 6回
-  {name:'霧の大農園',       w:8, h:8,  turns:11, target:135000, fruits:5},   // 6回
-  {name:'国営中央農場',     w:10,h:10, turns:14, target:175000, fruits:6}    // 8回・6種目はここから
+  {name:'風車のある丘',     w:8, h:8,  turns:9,  target:20000,  fruits:5},   // 4回
+  {name:'王立温室',         w:9, h:9,  turns:11, target:75000,  fruits:5},   // 6回
+  {name:'痩せた岩の段々畑', w:7, h:7,  turns:12, target:49000,  fruits:5},   // 6回
+  {name:'霧の大農園',       w:8, h:8,  turns:11, target:84000,  fruits:5},   // 6回
+  {name:'国営中央農場',     w:10,h:10, turns:14, target:110000, fruits:6}    // 8回・6種目はここから
 ];
 /* S9以降は自動生成。国民の食糧難を解決したあと、諸国へ広げていく段。
    1段ごとに1.85倍。地力やたからものの成長を上回るペースにして、
@@ -1103,9 +1116,9 @@ function paced(ms){
   const el = S._resolveStart ? Date.now() - S._resolveStart : 0;
   // 長い連鎖ほど見どころなので、圧縮を始めるまでの猶予を長めに取り、
   // 圧縮後もある程度は見える速さを保つ（速すぎて何が起きたか分からなくなるため）。
-  if(el > 25000) return Math.min(ms, 110);
-  if(el > 14000) return Math.min(ms, 180);
-  return ms;                              // 最初の14秒は通常どおりの演出
+  if(el > 18000) return Math.min(ms, 90);
+  if(el > 9000)  return Math.min(ms, 140);
+  return ms;                              // 最初の9秒は通常どおりの演出
 }
 function applySpeed(){ document.documentElement.style.setProperty('--sp', S.spd); }
 const $ = id => document.getElementById(id);
@@ -1245,7 +1258,7 @@ function blankCtx(){
     silverCut:0, silverEatAdd:0, silverMultAdd:0,
     rainbowCut:0, rainbowMultAdd:0, rainbowConvAdd:0, fakeCountAdd:0,
     blackChanceMul:1, blackMultAdd:0, blackFuse:false,
-    turnFruit:0, multFruit:0, carryMult:0,
+    turnFruit:0, multFruit:0, carryMult:0, coinFruitAdd:0, coinFruitBonus:0,
     storeSize:CONFIG.storeSize, slotAdd:0, bombAdd:0, bombMult:1,
     startSeeds:0, startItems:0, turnAdd:0
   };
@@ -1482,7 +1495,8 @@ function spawnTable(){
   return {w, total:w.reduce((a,b) => a+b, 0), conv,
           black: CONFIG.blackChance * c.blackChanceMul,
     seed:  Math.min(1, c.seedAdd + CONFIG.seedChance * c.seedMul),
-          bonusTurn: c.turnFruit, bonusMult: c.multFruit};
+          bonusTurn: c.turnFruit, bonusMult: c.multFruit,
+          bonusCoin: CONFIG.coinFruitChance + c.coinFruitAdd};
 }
 function refreshSpawn(){ S.spawn = spawnTable(); }
 
@@ -1539,6 +1553,7 @@ function newCell(){
   }
   const cell = {id:++S.uid, f};
   if(Math.random() < t.black) cell.sp = 'black';        // ごく低確率で黒いフルーツ
+  else if(Math.random() < t.bonusCoin) cell.bn = 'coin';   // ごく低確率でコインのフルーツ
   else if(Math.random() < t.bonusTurn) cell.bn = 'turn';   // 即発アイテムが有効な間だけ湧く
   else if(Math.random() < t.bonusMult) cell.bn = 'mult';
   // 種が出るかどうかを生成時に決めておく。こうすることで、盤面に🌱の印を
@@ -1759,6 +1774,7 @@ function sync(spawnFromTop = true){
     el.firstElementChild.classList.toggle('bonus', !!c.bn || !!c.mk || !!c.seed);
     const bn = el.lastElementChild;
     if(bn) bn.textContent = c.bn === 'turn' ? '⏳' : c.bn === 'mult' ? '✨'
+                          : c.bn === 'coin' ? '🪙'
                           : c.mk ? '🔗' : c.seed ? '🌱' : '';
   }
   for(const [id,el] of [...tileEls]) if(!live.has(id)){ el.remove(); tileEls.delete(id); }
@@ -2265,10 +2281,21 @@ async function resolve(manual, swapCells){
         }
       });
       const sizeB = Math.max(0, g.length-3) * (CONFIG.sizeBonus + c.sizeAdd);
-      // 測量士：塊が正方形（3×3など）なら追加スコア
-      // 測量士：3×3はめったに揃わないので、2×2が含まれていれば加点する
-      const squareB = (S.items.some(x => x.id === 'surveyor') && findSquares(g, 2).length)
-        ? 80 * LV(S.items.find(x => x.id === 'surveyor')) : 0;
+      // 測量士：2×2やL字は実プレイでほぼ発生しなかったため（実測2.7%）、
+      // 「4個以上の塊」を対象にする。さらに曲がった形なら倍額にして、
+      // 大きく・複雑に消すほど報われるようにする。
+      const surveyor = S.items.find(x => x.id === 'surveyor');
+      let squareB = 0;
+      if(surveyor && g.length >= 4){
+        const xs = g.map(i => i % S.w), ys = g.map(i => (i / S.w) | 0);
+        const bent = (Math.max(...xs) > Math.min(...xs)) && (Math.max(...ys) > Math.min(...ys));
+        squareB = 60 * LV(surveyor) * (bent ? 2 : 1);
+      }
+      if(squareB){
+        floatXY(g.reduce((a,i)=>a+(i%S.w),0)/g.length,
+                g.reduce((a,i)=>a+((i/S.w)|0),0)/g.length,
+                `📐 +${squareB}`, '#9fd8ff', {cls:'fx', delay:T(90)});
+      }
       // 大物狙い：規定サイズ未満の塊からは収穫できない
       const tooSmall = c.bigOnly && g.length < c.bigOnly;
       const gScore = tooSmall ? 0 : (gBase + sizeB + squareB + gBonus) * gMul * chainMul * c.bigMul;
@@ -2414,10 +2441,10 @@ async function resolve(manual, swapCells){
         floatText(b.i, SP[b.sp].n, SP[b.sp].col, {cls:'fx', dy:0.58});
       });
       sync(false);
-      await sleep(paced(T(320)));
+      await sleep(paced(T(240)));
     }
     // 連鎖が続くときは、次の段へ移る前に少し間を置いて「繋がった」ことを見せる
-    if(chain > 1) await sleep(paced(T(260)));
+    if(chain > 1) await sleep(paced(T(130)));
     await gravity();
     raw += await runTriggers(c, chainMul);
   }
@@ -2460,6 +2487,11 @@ async function clearCells(set){
       S.fruitMark[cell.f] = Math.round(((S.fruitMark[cell.f] || 0) + CONFIG.markScoreGain) * 100) / 100;
       floatText(i, `${F[cell.f].icon}+${CONFIG.markScoreGain}`, '#b6f0c8', {cls:'fx', dy:0.58});
     }
+    if(cell.bn === 'coin'){
+      const gain = CONFIG.coinFruitGain + ctx().coinFruitBonus;
+      S.coins += gain;
+      floatText(i, `🪙+${gain}`, '#ffd76b', {cls:'fx', dy:0.58});
+    }
     if(cell.bn === 'mult'){
       S.baseMult = Math.round((S.baseMult + CONFIG.multFruitGain) * 100) / 100;
       floatText(i, `基本倍率 +${CONFIG.multFruitGain}`, '#ffb0e0', {cls:'fx', dy:0.58});
@@ -2469,7 +2501,7 @@ async function clearCells(set){
     if(el){ el.classList.add('pop'); tileEls.delete(cell.id); setTimeout(()=>el.remove(), T(300)); }
     S.grid[i] = null;
   }
-  await sleep(paced(T(360)));
+  await sleep(paced(T(260)));
 }
 
 async function gravity(){
@@ -2481,7 +2513,7 @@ async function gravity(){
       S.grid[y*S.w+x] = k < col.length ? col[k] : newCell();
   }
   sync(true);
-  await sleep(paced(T(300)));
+  await sleep(paced(T(230)));
 }
 
 /* にせもの系アイテムの盤面書き換え（3ターンに1回）。
@@ -3023,16 +3055,16 @@ function startStage(skipIntro){
   S.harvestBoost = 1;              // 3×3の大収穫で上がる、盤面全体の基礎スコア倍率
   S.discarded = 0;                 // このステージでアイテムを手放した回数
   S.festivalMult = CONFIG.festivalStart;  // 🎊大収穫祭が育てていく倍率
-  S.compostBonus = 0;              // 堆肥箱で積み上げた基礎スコア（ステージ内で永続）
   S.items = [];
   const c1 = ctx();                       // アイテムをリセットした状態でたからものを再評価
   S.turnsMax = st.turns + c1.turnAdd;
   S.seeds = CONFIG.roundSeeds + c1.startSeeds;
   S.fruitIds = activeFruitIds();
 
-  // 前のステージから持ち越したアイテム
-  S.carryOver.forEach(it => S.items.push(it));
-  S.carryOver = [];
+  // 前のステージから持ち越したアイテム。
+  // やり直しのたびに同じものを配れるよう、carryOver は消さずに残しておく
+  // （消してしまうと、1回失敗しただけで持ち越しが全部消えてしまう）。
+  S.carryOver.forEach(it => S.items.push({...it}));
 
   // 騙しアイテムを抱えすぎていると、その分だけ制限ターンを失う
   const cDeceit = ctx().deceit;
@@ -3410,7 +3442,7 @@ function stageFail(){
 function newGame(){
   S.stage = 0; S.slots = CONFIG.startSlots; S.treasures = []; S.uid = 0;
   S.lifetime = 0; S.maxStage = 0; S.carrySlots = 0; S.fruitMark = {};
-  S.coins = CONFIG.startCoins; S.bombs = 0; S.storeRerolls = 0;
+  S.coins = CONFIG.startCoins; S.bombs = 0; S.storeRerolls = 0; S.compostBonus = 0;
   S.rerollBase = 0; S.rerollStage = -1;
   S.items = []; S.carryOver = []; S.seeds = 0;
   clearAutoSave();                 // 最初からやり直すので、古い保存は消す
@@ -3466,18 +3498,10 @@ function openMap(back){
         地力 Lv${soilLevel()} ／ 累計収穫 ${fmtScore(S.lifetime)}
       </div>
 
-      <h3 class="sec">道具屋</h3>
       <div class="seedbar">
         <span class="lbl">🪙 コイン</span>
         <span class="num">×${S.coins}</span>
         <span class="cost">💣 爆弾 ×${S.bombs}</span>
-      </div>
-      <button class="btn" data-act="buybomb" style="width:100%"
-        ${S.coins < CONFIG.bombPrice ? 'disabled' : ''}>
-        💣 爆弾を1つ買う（🪙${CONFIG.bombPrice}）</button>
-      <div class="doc" style="font-size:11px;margin-top:6px;color:var(--dim)">
-        余った不思議な種は、農園を出るときにコインへ変わります。
-        爆弾はいつでも盤面で使えます（ターンを1消費）。
       </div>
       ${back ? '<div class="row" style="margin-top:12px"><button class="btn ghost" data-act="c">戻る</button></div>' : ''}
     `, el => {
@@ -3491,13 +3515,6 @@ function openMap(back){
         S.stage = sel;
         closeSheet();
         startStage();
-      };
-      const bb = el.querySelector('[data-act="buybomb"]');
-      if(bb) bb.onclick = () => {
-        if(S.coins < CONFIG.bombPrice) return;
-        S.coins -= CONFIG.bombPrice;
-        S.bombs++;
-        autoSave(); hud(); draw();
       };
       const cb = el.querySelector('[data-act="c"]');
       if(cb) cb.onclick = done;
@@ -3520,7 +3537,7 @@ function saveText(){
     stage:S.stage, maxStage:S.maxStage, slots:S.slots, seeds:S.seeds,
     lifetime:S.lifetime, spd:S.spd, carriedMult:S.carriedMult, carrySlots:S.carrySlots,
     fruitMark:S.fruitMark, coins:S.coins, bombs:S.bombs, storeRerolls:S.storeRerolls,
-    rerollBase:S.rerollBase, rerollStage:S.rerollStage,
+    rerollBase:S.rerollBase, rerollStage:S.rerollStage, compostBonus:S.compostBonus,
     items:S.items.map(i => [i.id, LV(i)]),
     treasures:S.treasures.map(t => [t.id, LV(t)])
   });
@@ -3574,6 +3591,7 @@ function loadText(txt){
   S.bombs = Math.max(0, o.bombs | 0);
   S.storeRerolls = Math.max(0, o.storeRerolls | 0);
   S.rerollBase = Math.max(0, o.rerollBase | 0);
+  S.compostBonus = Math.max(0, +o.compostBonus || 0);
   S.rerollStage = (o.rerollStage === undefined) ? -1 : (o.rerollStage | 0);
   S.carryOver = [];
   if(o.spd) { S.spd = +o.spd; applySpeed(); }
